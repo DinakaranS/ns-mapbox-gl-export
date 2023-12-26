@@ -220,7 +220,7 @@ export default class MapboxExportControl implements IControl {
 
         const content = document.createElement(isTitle ? 'textarea' : 'input');
         content.setAttribute('id', `mapbox-gl-export-${type}`);
-        content.style.width = isTitle ? '97%' : '96%';
+        content.style.width = '100%';
         content.style.marginRight = '5px';
         content.style.display = 'none';
 
