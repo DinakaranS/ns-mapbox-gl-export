@@ -1,6 +1,6 @@
 {
   "name": "ns-mapbox-gl-export",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "This module adds control which can export PDF and images.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -55,6 +55,6 @@
     "js-loading-overlay": "^1.2.0",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.1",
-    "mapbox-gl": "^3.0.1"
+    "mapbox-gl": "^3.7.0"
   }
 }

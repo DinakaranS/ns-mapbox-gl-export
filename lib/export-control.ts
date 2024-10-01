@@ -8,6 +8,8 @@ import MapGenerator, {
     Size, Format, PageOrientation, DPI, Unit,
 } from './map-generator';
 
+type ControlPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
 type Options = {
     PageSize: any;
     PageOrientation: string;
@@ -62,10 +64,7 @@ export default class MapboxExportControl implements IControl {
         this.onDocumentClick = this.onDocumentClick.bind(this);
     }
 
-    public getDefaultPosition(): string {
-        const defaultPosition = 'top-right';
-        return defaultPosition;
-    }
+    public getDefaultPosition = (): ControlPosition => 'top-right';
 
     public getTranslation(): Translation {
         switch (this.options.Local) {

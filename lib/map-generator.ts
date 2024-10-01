@@ -1,7 +1,7 @@
 import {jsPDF} from 'jspdf';
 import 'jspdf-autotable';
 import {saveAs} from 'file-saver';
-import {accessToken, Map as MapboxMap} from 'mapbox-gl';
+import mapboxgl, {Map as MapboxMap} from 'mapbox-gl';
 import 'js-loading-overlay';
 import {fabric} from 'fabric';
 
@@ -76,7 +76,7 @@ export default class MapGenerator {
 
     private unit: Unit;
 
-    private accesstoken: string | undefined;
+    private accessToken: string | undefined;
 
     private logoURL: string | undefined;
 
@@ -87,6 +87,8 @@ export default class MapGenerator {
      * @param dpi dpi value. deafult is 300
      * @param format image format. default is PNG
      * @param unit length unit. default is mm
+     * @param accessToken
+     * @param logoURL
      */
     constructor(
         map: MapboxMap,
@@ -94,7 +96,7 @@ export default class MapGenerator {
         dpi: number = 300,
         format: string = Format.PNG.toString(),
         unit: Unit = Unit.mm,
-        accesstoken?: string,
+        accessToken?: string,
         logoURL?: string,
     ) {
         this.map = map;
@@ -103,8 +105,31 @@ export default class MapGenerator {
         this.dpi = dpi;
         this.format = format;
         this.unit = unit;
-        this.accesstoken = accesstoken;
+        this.accessToken = accessToken;
         this.logoURL = logoURL;
+    }
+
+    private stringify(obj) {
+        let cache = [];
+        const str = JSON.stringify(obj, function (key, value) {
+            if (typeof value === 'object' && value !== null) {
+                // eslint-disable-next-line
+                // @ts-ignore
+                if (cache.indexOf(value) !== -1) {
+                    // Circular reference found, discard key
+                    return;
+                }
+                // Store value in our collection
+                // eslint-disable-next-line
+                // @ts-ignore
+                cache.push(value);
+            }
+            return value;
+        });
+        // eslint-disable-next-line
+        // @ts-ignore
+        cache = null; // reset the cache
+        return str;
     }
 
     /**
@@ -121,7 +146,7 @@ export default class MapGenerator {
                 overlayBackgroundColor: '#5D5959',
                 overlayOpacity: '0.6',
                 spinnerIcon: 'ball-spin',
-                spinnerColor: '#2400FD',
+                spinnerColor: '#5733d6',
                 spinnerSize: '2x',
                 overlayIDName: 'overlay',
                 spinnerIDName: 'spinner',
@@ -150,24 +175,25 @@ export default class MapGenerator {
         hidden.appendChild(container);
 
         const style = this.map.getStyle();
-        if (style && style.sources) {
-            const sources = style.sources;
-            Object.keys(sources).forEach((name) => {
-                const src = sources[name];
-                Object.keys(src).forEach((key) => {
-                    // delete properties if value is undefined.
-                    // for instance, raster-dem might has undefined value in "url" and "bounds"
-                    if (!src[key]) delete src[key];
+        if (style) {
+            if (style.sources) {
+                const sources = style.sources;
+                Object.keys(sources).forEach((name) => {
+                    const src = sources[name];
+                    Object.keys(src).forEach((key) => {
+                        if (!src[key]) delete src[key];
+                    });
                 });
-            });
+            }
         }
-        const mapScale = this.getMapScaleInFeets(this.map.getZoom())
 
+        const mapScale = this.getMapScaleInFeets(this.map.getZoom())
+        const s = this.stringify(style);
         // Render map
         const renderMap = new MapboxMap({
-            accessToken: this.accesstoken || accessToken,
+            accessToken: this.accessToken || mapboxgl.accessToken,
             container,
-            style,
+            style: JSON.parse(s),
             center: this.map.getCenter(),
             zoom: this.map.getZoom(),
             bearing: this.map.getBearing(),
@@ -181,10 +207,14 @@ export default class MapGenerator {
         });
 
         // @ts-ignore
-        const images = (this.map.style.imageManager || {}).images || [];
-        Object.keys(images).forEach((key) => {
-            if (images[key].data && images[key].data.width) renderMap.addImage(key, images[key].data);
-        });
+        const images: any = (this.map.style.imageManager || {}).images || [];
+        if (images && Object.keys(images)?.length > 0) {
+            Object.keys(images).forEach((key) => {
+                if (!key) return;
+                if (!images[key].data) return;
+                renderMap.addImage(key, images[key].data);
+            });
+        }
 
         renderMap.once('idle', () => {
             const canvas = renderMap.getCanvas();
@@ -284,7 +314,7 @@ export default class MapGenerator {
             theme: 'grid',
             tableLineColor: [0, 0, 0],
             tableLineWidth: 0.50,
-            startY: this.height - 35, // Vertical position to start the table (in mm)
+            startY: this.height - 35,
             styles: {
                 overflow: 'linebreak',
                 fontSize: 12,
@@ -318,7 +348,7 @@ export default class MapGenerator {
 
         const {lng, lat} = map.getCenter();
         pdf.setProperties({
-            title: map.getStyle().name,
+            title: map.getStyle()?.name,
             subject: `center: [${lng}, ${lat}], zoom: ${map.getZoom()}`,
             creator: 'Nobel Systems Map Exporter',
             author: '(c)Nobel Systems',
