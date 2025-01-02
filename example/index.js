@@ -14,13 +14,15 @@ import '../css/styles.css';
     });
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.addControl(new MapboxExportControl({
-        PageSize: Size.A3,
-        PageOrientation: PageOrientation.Portrait,
-        Format: Format.PNG,
-        DPI: DPI[96],
+        PageSize: Size.A4,
+        PageOrientation: PageOrientation.Landscape,
+        Format: Format.PDF,
+        DPI: DPI[300],
         Crosshair: true,
         PrintableArea: true,
         Local: 'en',
-        logoURL: 'https://s3.amazonaws.com/dev.geoviewer.io/img/baao.jpeg',
+        additionalProps: { logoSize:[40,20] },
+        logoURL: 'https://s3.amazonaws.com/dev.geoviewer.io/img/sejpa.jpeg',
+        accessToken:"pk.eyJ1IjoiYXJldGhhc2FtdWVsIiwiYSI6ImNpa2VkeXU2NjAwNDR1a20yMmV5aGZ3dDAifQ.qictWBxPjb9-SjxZ7ImS2g",
     }), 'top-right');
 })()

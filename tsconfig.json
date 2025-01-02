@@ -1,24 +1,26 @@
 {
-  "compilerOptions": {
-      "alwaysStrict": true,
-      "baseUrl": ".",
-      "declaration": true,
-      "experimentalDecorators": true,
-      "lib": [
-          "dom",
-          "es2020"
-      ],
-      "module": "commonjs",
-      "moduleResolution": "node",
-      "noImplicitThis": true,
-      "noUnusedLocals": true,
-      "outDir": "./dist/",
-      "preserveConstEnums": true,
-      "removeComments": true,
-      "strictFunctionTypes": true,
-      "strictNullChecks": true,
-      "sourceMap": true,
-      "target": "es6"
-  },
-  "include" : ["lib/**/*"] 
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "baseUrl": ".",
+        "declaration": true,
+        "experimentalDecorators": true,
+        "lib": [
+            "dom",
+            "es2020"
+        ],
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "outDir": "./dist/",
+        "preserveConstEnums": true,
+        "removeComments": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+        "sourceMap": true,
+        "target": "es6",
+        "esModuleInterop": true, // Add this
+        "allowSyntheticDefaultImports": true // Add this
+    },
+    "include": ["lib/**/*"]
 }
