@@ -57,6 +57,8 @@ export default class MapboxExportControl implements IControl {
     logoURL: undefined,
   };
 
+  private previousScaleValue: string;
+
   constructor(options: Options) {
     if (options) {
       this.options = Object.assign(this.options, options);
@@ -90,10 +92,9 @@ export default class MapboxExportControl implements IControl {
       return 'Scale not available';
     }
     const zoom = this.map.getZoom();
-    const maxZoom = this.map.getMaxZoom();
-    const reverseZoom = maxZoom - zoom;
-    const scaleValue = (2 ** reverseZoom) * 4;
-    return `1" = ${scaleValue.toFixed(0)} ft`;
+    const scaleValueInFeet = Math.round((591657550.500000 / 2 ** (zoom + 1.07)) / 12).toFixed(0);
+    this.previousScaleValue = scaleValueInFeet;
+    return `1" = ${scaleValueInFeet} ft`;
   }
 
   private updateScaleOnZoom(): void {
@@ -286,20 +287,30 @@ export default class MapboxExportControl implements IControl {
     return tr;
   }
 
-  private handleScaleInputChange(value: string): void {
-    const scaleValue = parseFloat(value.replace('1" = ', '').replace(' ft', '').trim());
-    if (Number.isNaN(scaleValue)) {
-      this.showErrorMessage('Enter valid input');
-      return;
+  private restorePreviousScaleValue(): void {
+    const scaleInput = document.getElementById('mapbox-gl-export-scale') as HTMLInputElement;
+    if (scaleInput) {
+      scaleInput.value = this.previousScaleValue;
     }
+  }
+
+  private handleScaleInputChange(value: string): void {
     if (!this.map) {
       console.error('Map is not available');
       return;
     }
+    const scaleValue = parseFloat(value.replace('1" = ', '').replace(' ft', '').trim());
+    if (Number.isNaN(scaleValue)) {
+      this.showErrorMessage('Invalid scale input');
+      return;
+    }
+    const scaleInFeet = scaleValue * 12;
+    const zoomLevel = Math.log(591657550.500000 / scaleInFeet) / Math.log(2) - 1.07;
     const maxZoom = this.map.getMaxZoom();
-    const reverseZoom = Math.log(scaleValue / 4) / Math.log(2);
-    const zoomLevel = maxZoom - reverseZoom;
-    this.map.setZoom(zoomLevel);
+    const minZoom = this.map.getMinZoom();
+    const clampedZoom = Math.min(Math.max(zoomLevel, minZoom), maxZoom);
+    this.map.setZoom(clampedZoom);
+    this.previousScaleValue = value;
   }
 
   private showErrorMessage(message: string): void {
@@ -335,6 +346,7 @@ export default class MapboxExportControl implements IControl {
 
     okButton.addEventListener('click', (event: MouseEvent) => {
       modal.style.display = 'none';
+      this.restorePreviousScaleValue();
       event.stopPropagation();
     });
 
@@ -346,6 +358,7 @@ export default class MapboxExportControl implements IControl {
     if (this.map) {
       this.map.on('click', () => {
         modal.style.display = 'none';
+        this.restorePreviousScaleValue();
       });
     }
   }

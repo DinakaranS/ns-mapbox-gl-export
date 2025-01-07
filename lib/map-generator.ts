@@ -227,7 +227,7 @@ export default class MapGenerator {
           this_.toJPEG(canvas, fileName, callback);
           break;
         case Format.PDF:
-          this_.toPDF(renderMap, fileName, { scale: `1'' = ${mapScale.toString()}`, ...pdfOptions }, callback);
+          this_.toPDF(renderMap, fileName, { scale: `1'' = ${mapScale.toString()} ft`, ...pdfOptions }, callback);
           break;
         case Format.SVG:
           this_.toSVG(canvas, fileName);
@@ -437,5 +437,7 @@ export default class MapGenerator {
     return parseFloat(c.toString());
   };
 
-  private getMapScaleInFeet = (zoom: number) => Math.round((591657550.500000 / 2 ** (zoom + 1)) / 12).toFixed(0);
+  private getMapScaleInFeet(zoom: number): string {
+    return Math.round((591657550.500000 / 2 ** (zoom + 1.07)) / 12).toFixed(0);
+  }
 }
