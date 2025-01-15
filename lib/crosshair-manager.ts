@@ -15,9 +15,7 @@ export default class CrosshairManager {
 
   private color = '#535353';
 
-  constructor(
-    map: MapboxMap | undefined,
-  ) {
+  constructor(map: MapboxMap | undefined) {
     this.map = map;
     this.mapResize = this.mapResize.bind(this);
   }
@@ -45,10 +43,11 @@ export default class CrosshairManager {
   private updateCanvas() {
     if (
       this.svgCanvas !== undefined
-            && this.yLine !== undefined
-            && this.xLine !== undefined
-            && this.width !== undefined
-            && this.height !== undefined) {
+      && this.yLine !== undefined
+      && this.xLine !== undefined
+      && this.width !== undefined
+      && this.height !== undefined
+    ) {
       this.svgCanvas.setAttribute('width', `${this.width}px`);
       this.svgCanvas.setAttribute('height', `${this.height}px`);
       const halfWidth = this.width / 2;
@@ -68,24 +67,39 @@ export default class CrosshairManager {
   }
 
   private createCanvas(container) {
-    if (
-      this.width !== undefined
-            && this.height !== undefined) {
-      const canvas = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    if (this.width !== undefined && this.height !== undefined) {
+      const canvas = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'svg',
+      );
       canvas.style.position = 'relative';
       canvas.setAttribute('width', `${this.width}px`);
       canvas.setAttribute('height', `${this.height}px`);
       const halfWidth = this.width / 2;
       const halfHeight = this.height / 2;
-      this.yLine = canvas.appendChild(this.createLine(halfWidth, 0, halfWidth, this.height, this.color, '2px'));
-      this.xLine = canvas.appendChild(this.createLine(0, halfHeight, this.width, halfHeight, this.color, '2px'));
+      this.yLine = canvas.appendChild(
+        this.createLine(halfWidth, 0, halfWidth, this.height, this.color, '2px'),
+      );
+      this.xLine = canvas.appendChild(
+        this.createLine(
+          0,
+          halfHeight,
+          this.width,
+          halfHeight,
+          this.color,
+          '2px',
+        ),
+      );
       container?.appendChild(canvas);
       this.svgCanvas = canvas;
     }
   }
 
   private createLine(x1, y1, x2, y2, color, w) {
-    const aLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const aLine = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'line',
+    );
     aLine.setAttribute('x1', x1);
     aLine.setAttribute('y1', y1);
     aLine.setAttribute('x2', x2);

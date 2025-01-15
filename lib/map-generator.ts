@@ -6,11 +6,11 @@ import 'js-loading-overlay';
 import * as fabric from 'fabric';
 
 type PDFOptions = {
-    title?: string,
-    subTitle?: string,
-    logo?: string,
-    scale?: string
-}
+  title?: string;
+  subTitle?: string;
+  logo?: string;
+  scale?: string;
+};
 
 export const Format = {
   JPEG: 'jpg',
@@ -18,14 +18,14 @@ export const Format = {
   PDF: 'pdf',
   SVG: 'svg',
 } as const;
-type Format = typeof Format[keyof typeof Format];
+type Format = (typeof Format)[keyof typeof Format];
 
 export const Unit = {
   // don't use inch unit. because page size setting is using mm unit.
   in: 'in',
   mm: 'mm',
 } as const;
-type Unit = typeof Unit[keyof typeof Unit];
+type Unit = (typeof Unit)[keyof typeof Unit];
 
 export const Size = {
   // A0, A1, B0, B1 are not working well.
@@ -45,15 +45,14 @@ export const Size = {
   B4: [353, 250],
   B5: [250, 176],
   B6: [176, 125],
-
 } as const;
-type Size = typeof Size[keyof typeof Size];
+type Size = (typeof Size)[keyof typeof Size];
 
 export const PageOrientation = {
   Landscape: 'landscape',
   Portrait: 'portrait',
 } as const;
-type PageOrientation = typeof PageOrientation[keyof typeof PageOrientation];
+type PageOrientation = (typeof PageOrientation)[keyof typeof PageOrientation];
 
 export const DPI = {
   72: 72,
@@ -62,7 +61,7 @@ export const DPI = {
   300: 300,
   400: 400,
 } as const;
-type DPI = typeof DPI[keyof typeof DPI];
+type DPI = (typeof DPI)[keyof typeof DPI];
 export default class MapGenerator {
   private map: MapboxMap;
 
@@ -81,15 +80,15 @@ export default class MapGenerator {
   private logoURL: string | undefined;
 
   /**
-     * Constructor
-     * @param map MapboxMap object
-     * @param size layout size. default is A4
-     * @param dpi dpi value. deafult is 300
-     * @param format image format. default is PNG
-     * @param unit length unit. default is mm
-     * @param accessToken
-     * @param logoURL
-     */
+   * Constructor
+   * @param map MapboxMap object
+   * @param size layout size. default is A4
+   * @param dpi dpi value. deafult is 300
+   * @param format image format. default is PNG
+   * @param unit length unit. default is mm
+   * @param accessToken
+   * @param logoURL
+   */
   constructor(
     map: MapboxMap,
     size: Size = Size.A4,
@@ -114,28 +113,33 @@ export default class MapGenerator {
     const str = JSON.stringify(obj, (key, value) => {
       if (typeof value === 'object' && value !== null) {
         // eslint-disable-next-line
-                // @ts-ignore
+        // @ts-ignore
         if (cache.indexOf(value) !== -1) {
           // Circular reference found, discard key
           return;
         }
         // Store value in our collection
         // eslint-disable-next-line
-                // @ts-ignore
+        // @ts-ignore
         cache.push(value);
       }
       return value;
     });
     // eslint-disable-next-line
-        // @ts-ignore
+    // @ts-ignore
     cache = null; // reset the cache
     return str;
   }
 
   /**
-     * Generate and download Map image
-     */
-  generate(loader?: boolean, fName?: string, pdfOptions?: PDFOptions, callback?: (error: any, data: any) => void) {
+   * Generate and download Map image
+   */
+  generate(
+    loader?: boolean,
+    fName?: string,
+    pdfOptions?: PDFOptions,
+    callback?: (error: any, data: any) => void,
+  ) {
     const this_ = this;
 
     if (loader) {
@@ -187,8 +191,11 @@ export default class MapGenerator {
       }
     }
 
-    const mapScale = this.getMapScaleInFeet(this.map.getZoom());
+    const mapScale = this.getMapScaleInFeets(this.map.getZoom());
     const s = this.stringify(style);
+
+    // console.log(mapboxgl);
+
     // Render map
     const renderMap = new MapboxMap({
       accessToken: this.accessToken || mapboxgl.accessToken || '',
@@ -227,7 +234,12 @@ export default class MapGenerator {
           this_.toJPEG(canvas, fileName, callback);
           break;
         case Format.PDF:
-          this_.toPDF(renderMap, fileName, { scale: `1'' = ${mapScale.toString()} ft`, ...pdfOptions }, callback);
+          this_.toPDF(
+            renderMap,
+            fileName,
+            { scale: `1'' = ${mapScale.toString()}`, ...pdfOptions },
+            callback,
+          );
           break;
         case Format.SVG:
           this_.toSVG(canvas, fileName);
@@ -253,12 +265,16 @@ export default class MapGenerator {
   }
 
   /**
-     * Convert canvas to PNG
-     * @param canvas Canvas element
-     * @param fileName file name
-     * @param callback callback
-     */
-  private toPNG(canvas: HTMLCanvasElement, fileName: string, callback?: ((error: any, data: any) => void) | undefined) {
+   * Convert canvas to PNG
+   * @param canvas Canvas element
+   * @param fileName file name
+   * @param callback callback
+   */
+  private toPNG(
+    canvas: HTMLCanvasElement,
+    fileName: string,
+    callback?: ((error: any, data: any) => void) | undefined,
+  ) {
     canvas.toBlob((blob) => {
       if (callback) callback(null, blob);
       else {
@@ -269,12 +285,16 @@ export default class MapGenerator {
   }
 
   /**
-     * Convert canvas to JPEG
-     * @param canvas Canvas element
-     * @param fileName file name
-     * @param callback callback
-     */
-  private toJPEG(canvas: HTMLCanvasElement, fileName: string, callback?: ((error: any, data: any) => void) | undefined) {
+   * Convert canvas to JPEG
+   * @param canvas Canvas element
+   * @param fileName file name
+   * @param callback callback
+   */
+  private toJPEG(
+    canvas: HTMLCanvasElement,
+    fileName: string,
+    callback?: ((error: any, data: any) => void) | undefined,
+  ) {
     const uri = canvas.toDataURL('image/jpeg', 0.85);
     if (callback) callback(null, uri);
     else {
@@ -287,13 +307,18 @@ export default class MapGenerator {
   }
 
   /**
-     * Convert Map object to PDF
-     * @param map mapboxgl.Map object
-     * @param fileName file name
-     * @param pdfOptions
-     * @param callback callback
-     */
-  private toPDF(map: mapboxgl.Map, fileName?: string, pdfOptions?: PDFOptions, callback?: ((error: any, data: any) => void) | undefined) {
+   * Convert Map object to PDF
+   * @param map mapboxgl.Map object
+   * @param fileName file name
+   * @param pdfOptions
+   * @param callback callback
+   */
+  private toPDF(
+    map: mapboxgl.Map,
+    fileName?: string,
+    pdfOptions?: PDFOptions,
+    callback?: ((error: any, data: any) => void) | undefined,
+  ) {
     const canvas = map.getCanvas();
     const pdf = new jsPDF({
       orientation: this.width > this.height ? 'l' : 'p',
@@ -303,17 +328,34 @@ export default class MapGenerator {
     });
     pdf.setFontSize(13);
     const width = pdf.internal.pageSize.getWidth();
-    pdf.text((pdfOptions?.title || '').toString(), width / 2, 15, { align: 'center', maxWidth: this.width - 20 });
-    pdf.addImage(canvas.toDataURL('image/png'), 'png', 10, 17, this.width - 20, this.height - 55, undefined, 'FAST');
+    pdf.text((pdfOptions?.title || '').toString(), width / 2, 15, {
+      align: 'center',
+      maxWidth: this.width - 20,
+    });
+    pdf.addImage(
+      canvas.toDataURL('image/png'),
+      'png',
+      10,
+      17,
+      this.width - 20,
+      this.height - 55,
+      undefined,
+      'FAST',
+    );
 
     // Define the table columns and rows
-    const columns = [pdfOptions?.scale, pdfOptions?.subTitle, this.formatDate(new Date()), ''];
+    const columns = [
+      pdfOptions?.scale,
+      pdfOptions?.subTitle,
+      this.formatDate(new Date()),
+      '',
+    ];
 
     // Set the table options
     const options = {
       theme: 'grid',
       tableLineColor: [0, 0, 0],
-      tableLineWidth: 0.50,
+      tableLineWidth: 0.5,
       startY: this.height - 35,
       styles: {
         overflow: 'linebreak',
@@ -328,21 +370,32 @@ export default class MapGenerator {
         lineColor: [0, 0, 0],
         lineWidth: 0.5,
         minCellHeight: 25,
-        cellWidth: ((this.width - 20) / 4),
+        cellWidth: (this.width - 20) / 4,
       },
       bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
       margin: {
         top: 0, left: 10, right: 10, bottom: 0,
       },
       didDrawCell: (data: {
-                section: string;
-                column: { index: number; };
-                cell: { x: number; width: string | number; y: number; };
-            }) => {
-        if (data.section === 'head' && data.column.index === 3 && (this.logoURL || pdfOptions?.logo)) {
+        section: string;
+        column: { index: number };
+        cell: { x: number; width: string | number; y: number };
+      }) => {
+        if (
+          data.section === 'head'
+          && data.column.index === 3
+          && (this.logoURL || pdfOptions?.logo)
+        ) {
           const img = new Image();
           img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
-          pdf.addImage(img, 'JPEG', data.cell.x + this.percentCalculation(data.cell.width, 32), data.cell.y + 2, 20, 20);
+          pdf.addImage(
+            img,
+            'JPEG',
+            data.cell.x + this.percentCalculation(data.cell.width, 32),
+            data.cell.y + 2,
+            20,
+            20,
+          );
         }
       },
     };
@@ -363,20 +416,24 @@ export default class MapGenerator {
   }
 
   /**
-     * Convert canvas to SVG
-     * this SVG export is using fabric.js. It is under experiment.
-     * Please also see their document.
-     * http://fabricjs.com/docs/
-     * @param canvas Canvas element
-     * @param fileName file name
-     */
+   * Convert canvas to SVG
+   * this SVG export is using fabric.js. It is under experiment.
+   * Please also see their document.
+   * http://fabricjs.com/docs/
+   * @param canvas Canvas element
+   * @param fileName file name
+   */
   private toSVG(canvas: HTMLCanvasElement, fileName: string) {
     const uri = canvas.toDataURL('image/png');
     // @ts-ignore
     fabric.Image.fromURL(uri, (image) => {
       const tmpCanvas = new fabric.Canvas('canvas');
-      const pxWidth = Number(this.toPixels(this.width, this.dpi).replace('px', ''));
-      const pxHeight = Number(this.toPixels(this.height, this.dpi).replace('px', ''));
+      const pxWidth = Number(
+        this.toPixels(this.width, this.dpi).replace('px', ''),
+      );
+      const pxHeight = Number(
+        this.toPixels(this.height, this.dpi).replace('px', ''),
+      );
       image.scaleToWidth(pxWidth);
       image.scaleToHeight(pxHeight);
 
@@ -405,10 +462,10 @@ export default class MapGenerator {
   }
 
   /**
-     * Convert mm/inch to pixel
-     * @param length mm/inch length
-     * @param conversionFactor DPI value. default is 96.
-     */
+   * Convert mm/inch to pixel
+   * @param length mm/inch length
+   * @param conversionFactor DPI value. default is 96.
+   */
   private toPixels(length: number, conversionFactor = 96) {
     if (this.unit === Unit.mm) {
       conversionFactor /= 25.4;
@@ -417,27 +474,28 @@ export default class MapGenerator {
   }
 
   /**
-     *
-     * @param num
-     */
+   *
+   * @param num
+   */
   private padTo2Digits = (num: number) => num.toString().padStart(2, '0');
 
   /**
-     *
-     * @param date
-     */
+   *
+   * @param date
+   */
   private formatDate = (date: Date) => [
     this.padTo2Digits(date.getDate()),
     this.padTo2Digits(date.getMonth() + 1),
     date.getFullYear(),
   ].join('/');
 
-  private percentCalculation = (total: number | string, percent: number | string): number => {
+  private percentCalculation = (
+    total: number | string,
+    percent: number | string,
+  ): number => {
     const c = (parseFloat(total.toString()) * parseFloat(percent.toString())) / 100;
     return parseFloat(c.toString());
   };
 
-  private getMapScaleInFeet(zoom: number): string {
-    return Math.round((591657550.500000 / 2 ** (zoom + 1.07)) / 12).toFixed(0);
-  }
+  private getMapScaleInFeets = (zoom: number) => Math.round(591657550.5 / 2 ** (zoom + 1) / 12).toFixed(0);
 }
