@@ -227,7 +227,7 @@ export default class MapboxExportControl implements IControl {
     return this.controlContainer;
   }
 
-  private OnConatinerClick(): void {
+  public OnConatinerClick(): void {
     this.toggleCrosshair(true);
     this.togglePrintableArea(true);
   }
