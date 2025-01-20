@@ -34,6 +34,7 @@ type Options = {
   accessToken?: string;
   Local?: 'de' | 'en' | 'fr' | 'fi' | 'sv' | 'vi';
   logoURL?: string;
+  adjustment?: number;
 };
 
 const enableDisableElement = (ids: string[], display: string) => {
@@ -62,8 +63,10 @@ export default class MapboxExportControl implements IControl {
 
   private exportButton: HTMLButtonElement;
 
+  private closeButton: HTMLButtonElement;
+
   private options: Options = {
-    PageSize: Size.A4,
+    PageSize: Size['8.3 x 11.7 (A4)'],
     PageOrientation: PageOrientation.Landscape,
     Format: Format.PDF,
     DPI: DPI[300],
@@ -71,7 +74,10 @@ export default class MapboxExportControl implements IControl {
     PrintableArea: false,
     accessToken: undefined,
     logoURL: undefined,
+    adjustment: 0.07,
   };
+
+  private previousScaleValue: string;
 
   constructor(options: Options) {
     if (options) {
@@ -79,9 +85,15 @@ export default class MapboxExportControl implements IControl {
     }
     this.onDocumentClick = this.onDocumentClick.bind(this);
     this.OnConatinerClick = this.OnConatinerClick.bind(this);
+    this.OnConatinerRemove = this.OnConatinerRemove.bind(this);
   }
 
   public getDefaultPosition = (): ControlPosition => 'top-right';
+
+  public OnConatinerRemove(): void {
+    this.toggleCrosshair(false);
+    this.togglePrintableArea(false);
+  }
 
   public getTranslation(): Translation {
     switch (this.options.Local) {
@@ -102,6 +114,29 @@ export default class MapboxExportControl implements IControl {
     }
   }
 
+  private calculateScale(): string {
+    if (!this.map) {
+      return 'Scale not available';
+    }
+    const zoom = this.map.getZoom();
+    console.log(this.options.adjustment);
+    const scaleValueInFeet = Math.round(
+      (591657550.500000 / 2 ** (zoom + 1 + Number(this.options.adjustment))) / 12,
+    ).toFixed(0);
+    this.previousScaleValue = scaleValueInFeet;
+    return `1" = ${scaleValueInFeet} ft`;
+  }
+
+  private updateScaleOnZoom(): void {
+    if (!this.map) return;
+    this.map.on('zoom', () => {
+      const scaleInput = document.getElementById('mapbox-gl-export-scale') as HTMLInputElement;
+      if (scaleInput) {
+        scaleInput.value = this.calculateScale().replace('1" = ', '').replace(' ft', '').trim();
+      }
+    });
+  }
+
   public onAdd(map: MapboxMap): HTMLElement {
     this.map = map;
     this.controlContainer = document.createElement('div');
@@ -119,7 +154,6 @@ export default class MapboxExportControl implements IControl {
       this.toggleCrosshair(true);
       this.togglePrintableArea(true);
     });
-    // document.addEventListener("click", this.onDocumentClick);
     this.controlContainer.appendChild(this.exportButton);
     this.controlContainer.appendChild(this.exportContainer);
 
@@ -161,6 +195,9 @@ export default class MapboxExportControl implements IControl {
       (data, key) => data[key],
     );
     table.appendChild(tr4);
+
+    const scaleRow = this.createScaleRow();
+    table.appendChild(scaleRow);
 
     const tr5 = this.createTextInput('Title', 'pdf-title');
     table.appendChild(tr5);
@@ -215,6 +252,7 @@ export default class MapboxExportControl implements IControl {
         Unit.mm,
         this.options.accessToken,
         this.options.logoURL,
+        this.options.adjustment,
       );
       mapGenerator.generate(
         true,
@@ -224,12 +262,51 @@ export default class MapboxExportControl implements IControl {
     });
     this.exportContainer.appendChild(generateButton);
 
+    this.closeButton = document.createElement('button');
+    this.closeButton.innerText = 'Cancel';
+    this.closeButton.classList.add('mapboxgl-close-icon');
+    this.closeButton.type = 'button';
+    this.closeButton.style.marginTop = '5px';
+
+    this.closeButton.addEventListener('click', () => {
+      this.resetToDefault();
+      this.exportContainer.style.display = 'none';
+      this.exportButton.style.display = 'block';
+
+      this.toggleCrosshair(false);
+      this.togglePrintableArea(false);
+    });
+
+    this.exportContainer.appendChild(this.closeButton);
+
+    this.updateScaleOnZoom();
+
     return this.controlContainer;
   }
 
   public OnConatinerClick(): void {
     this.toggleCrosshair(true);
     this.togglePrintableArea(true);
+  }
+
+  private resetToDefault(): void {
+    const pageSize: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-page-size');
+    pageSize.value = JSON.stringify(this.options.PageSize);
+
+    const pageOrientation: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-page-orientaiton');
+    pageOrientation.value = this.options.PageOrientation;
+
+    const formatType: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-format-type');
+    formatType.value = this.options.Format;
+
+    const dpiType: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-dpi-type');
+    dpiType.value = this.options.DPI.toString();
+
+    const titleEl: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-pdf-title');
+    titleEl.value = '';
+
+    const subTitleEl: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-pdf-sub-title');
+    subTitleEl.value = '';
   }
 
   private createSelection(
@@ -269,6 +346,135 @@ export default class MapboxExportControl implements IControl {
     return tr1;
   }
 
+  private createScaleRow(): HTMLElement {
+    const label = document.createElement('label');
+    label.textContent = 'Scale';
+    const static1 = document.createElement('span');
+    static1.textContent = '1"=';
+    const scaleInput = document.createElement('input');
+    scaleInput.setAttribute('id', 'mapbox-gl-export-scale');
+    scaleInput.type = 'text';
+    scaleInput.style.width = '80px';
+    scaleInput.style.marginLeft = '5px';
+    scaleInput.readOnly = false;
+    scaleInput.value = this.calculateScale().replace('1" = ', '').replace(' ft', '').trim();
+    scaleInput.addEventListener('blur', () => {
+      const value = scaleInput.value.trim();
+      if (value === '') {
+        this.showErrorMessage('Enter valid input');
+      } else {
+        this.handleScaleInputChange(value);
+      }
+    });
+    scaleInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        const value = scaleInput.value.trim();
+        if (value !== '') {
+          this.handleScaleInputChange(value);
+        }
+      }
+    });
+    scaleInput.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement | null;
+      if (target) {
+        const sanitizedValue = target.value.replace(/[^0-9\s]/g, '');
+        target.value = sanitizedValue;
+      }
+    });
+    const staticFt = document.createElement('span');
+    staticFt.textContent = ' ft';
+    const tr = document.createElement('tr');
+    const tdLabel = document.createElement('td');
+    const tdContent = document.createElement('td');
+    tdLabel.appendChild(label);
+    const scaleContainer = document.createElement('div');
+    scaleContainer.style.display = 'flex';
+    scaleContainer.style.alignItems = 'center';
+    scaleContainer.appendChild(static1);
+    scaleContainer.appendChild(scaleInput);
+    scaleContainer.appendChild(staticFt);
+    tdContent.appendChild(scaleContainer);
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdContent);
+    return tr;
+  }
+
+  private restorePreviousScaleValue(): void {
+    const scaleInput = document.getElementById('mapbox-gl-export-scale') as HTMLInputElement;
+    if (scaleInput) {
+      scaleInput.value = this.previousScaleValue;
+    }
+  }
+
+  private handleScaleInputChange(value: string): void {
+    if (!this.map) {
+      console.error('Map is not available');
+      return;
+    }
+    const scaleValue = parseFloat(value.replace('1" = ', '').replace(' ft', '').trim());
+    if (Number.isNaN(scaleValue)) {
+      this.showErrorMessage('Invalid scale input');
+      return;
+    }
+    const scaleInFeet = scaleValue * 12;
+    const zoomLevel = Math.log(591657550.500000 / scaleInFeet) / Math.log(2) - 1.07;
+    const maxZoom = this.map.getMaxZoom();
+    const minZoom = this.map.getMinZoom();
+    const clampedZoom = Math.min(Math.max(zoomLevel, minZoom), maxZoom);
+    this.map.setZoom(clampedZoom);
+    this.previousScaleValue = value;
+  }
+
+  private showErrorMessage(message: string): void {
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.backgroundColor = 'white';
+    modal.style.color = 'black';
+    modal.style.padding = '15px 60px';
+    modal.style.borderRadius = '5px';
+    modal.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.5)';
+    modal.style.zIndex = '1000';
+    modal.style.display = 'none';
+
+    const messageText = document.createElement('p');
+    messageText.textContent = message;
+    messageText.style.color = 'black';
+    messageText.style.fontSize = '25px';
+
+    const okButton = document.createElement('button');
+    okButton.textContent = 'OK';
+    okButton.style.marginTop = '10px';
+    okButton.style.backgroundColor = '#0000CD';
+    okButton.style.color = 'white';
+    okButton.style.border = 'none';
+    okButton.style.padding = '10px 20px';
+    okButton.style.cursor = 'pointer';
+    okButton.style.marginLeft = 'auto';
+    okButton.style.marginRight = 'auto';
+    okButton.style.display = 'block';
+
+    okButton.addEventListener('click', (event: MouseEvent) => {
+      modal.style.display = 'none';
+      this.restorePreviousScaleValue();
+      event.stopPropagation();
+    });
+
+    modal.appendChild(messageText);
+    modal.appendChild(okButton);
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+
+    if (this.map) {
+      this.map.on('click', () => {
+        modal.style.display = 'none';
+        this.restorePreviousScaleValue();
+      });
+    }
+  }
+
   private createTextInput(title: string, type: string): HTMLElement {
     const isTitle: boolean = type === 'pdf-title';
     const label = document.createElement('label');
@@ -281,6 +487,7 @@ export default class MapboxExportControl implements IControl {
     content.style.width = '100%';
     content.style.marginRight = '5px';
     content.style.display = 'none';
+    content.style.resize = 'none';
 
     if (isTitle) content.setAttribute('rows', '4');
 
@@ -374,7 +581,7 @@ export default class MapboxExportControl implements IControl {
     const format: HTMLSelectElement = <HTMLSelectElement>(
       document.getElementById('mapbox-gl-export-format-type')
     );
-    if (format && format.value && format.value === 'pdf') {
+    if (format && format.value && ['jpg', 'png', 'pdf', 'svg'].includes(format.value)) {
       enableDisableElement(
         [
           'mapbox-gl-export-label-pdf-title',

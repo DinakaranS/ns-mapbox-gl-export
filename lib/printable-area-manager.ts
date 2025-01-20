@@ -23,6 +23,8 @@ export default class PrintableAreaManager {
     if (this.map === undefined) {
       return;
     }
+    this.destroy = this.destroy.bind(this);
+    this.updateArea = this.updateArea.bind(this);
     this.mapResize = this.mapResize.bind(this);
     this.map.on('resize', this.mapResize);
     const clientWidth = this.map?.getCanvas().clientWidth;

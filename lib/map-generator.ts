@@ -31,20 +31,21 @@ export const Size = {
   // A0, A1, B0, B1 are not working well.
   // A0: [1189, 841],
   // A1: [841, 594],
-  LETTER: [279, 216], // 8.5x11 - works
+  '8.5 x 11 (LETTER)': [279, 216], // 8.5x11 - works
   // TABLOID: [432,279] // 11x17 - not working currently prints to 11.68x8.27 in landscape
-  A2: [594, 420],
-  A3: [420, 297],
-  A4: [297, 210],
-  A5: [210, 148],
-  A6: [148, 105],
+  '16.5 x 23.4 (A2)': [594, 420],
+  '11.7 x 16.5 (A3)': [420, 297],
+  '8.3 x 11.7 (A4)': [297, 210],
+  '5.8 x 8.3 (A5)': [210, 148],
+  '4.1 x 5.8 (A6)': [148, 105],
   // B0: [1414, 1000],
   // B1: [1000, 707],
-  B2: [707, 500],
-  B3: [500, 353],
-  B4: [353, 250],
-  B5: [250, 176],
-  B6: [176, 125],
+  '19.7 x 27.8 (B2)': [707, 500],
+  '13.9 x 19.7 (B3)': [500, 353],
+  '9.8 x 13.9 (B4)': [353, 250],
+  '6.9 x 9.8 (B5)': [250, 176],
+  '4.9 x 6.9 (B6)': [176, 125],
+
 } as const;
 type Size = (typeof Size)[keyof typeof Size];
 
@@ -79,6 +80,8 @@ export default class MapGenerator {
 
   private logoURL: string | undefined;
 
+  private adjustment: number | undefined;
+
   /**
    * Constructor
    * @param map MapboxMap object
@@ -88,15 +91,17 @@ export default class MapGenerator {
    * @param unit length unit. default is mm
    * @param accessToken
    * @param logoURL
+   * @param adjustment
    */
   constructor(
     map: MapboxMap,
-    size: Size = Size.A4,
+    size: Size = Size['8.3 x 11.7 (A4)'],
     dpi: number = 300,
     format: string = Format.PNG.toString(),
     unit: Unit = Unit.mm,
     accessToken?: string,
     logoURL?: string,
+    adjustment?: number,
   ) {
     this.map = map;
     this.width = size[0];
@@ -106,6 +111,7 @@ export default class MapGenerator {
     this.unit = unit;
     this.accessToken = accessToken;
     this.logoURL = logoURL;
+    this.adjustment = adjustment;
   }
 
   private stringify(obj) {
@@ -193,9 +199,6 @@ export default class MapGenerator {
 
     const mapScale = this.getMapScaleInFeets(this.map.getZoom());
     const s = this.stringify(style);
-
-    // console.log(mapboxgl);
-
     // Render map
     const renderMap = new MapboxMap({
       accessToken: this.accessToken || mapboxgl.accessToken || '',
@@ -237,7 +240,7 @@ export default class MapGenerator {
           this_.toPDF(
             renderMap,
             fileName,
-            { scale: `1'' = ${mapScale.toString()}`, ...pdfOptions },
+            { scale: `1'' = ${mapScale.toString()} ft`, ...pdfOptions },
             callback,
           );
           break;
@@ -328,7 +331,7 @@ export default class MapGenerator {
     });
     pdf.setFontSize(13);
     const width = pdf.internal.pageSize.getWidth();
-    pdf.text((pdfOptions?.title || '').toString(), width / 2, 15, {
+    pdf.text((pdfOptions?.title || '').toString(), width / 2, 9, {
       align: 'center',
       maxWidth: this.width - 20,
     });
@@ -336,7 +339,7 @@ export default class MapGenerator {
       canvas.toDataURL('image/png'),
       'png',
       10,
-      17,
+      13,
       this.width - 20,
       this.height - 55,
       undefined,
@@ -351,12 +354,16 @@ export default class MapGenerator {
       '',
     ];
 
+    const infoRow = [
+      'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.',
+    ];
+
     // Set the table options
     const options = {
       theme: 'grid',
       tableLineColor: [0, 0, 0],
       tableLineWidth: 0.5,
-      startY: this.height - 35,
+      startY: this.height - 40,
       styles: {
         overflow: 'linebreak',
         fontSize: 12,
@@ -377,25 +384,20 @@ export default class MapGenerator {
         top: 0, left: 10, right: 10, bottom: 0,
       },
       didDrawCell: (data: {
-        section: string;
-        column: { index: number };
-        cell: { x: number; width: string | number; y: number };
-      }) => {
-        if (
-          data.section === 'head'
-          && data.column.index === 3
-          && (this.logoURL || pdfOptions?.logo)
-        ) {
+            section: string;
+            column: { index: number; };
+            cell: { x: number; width: string | number; y: number; height: number; };
+        }) => {
+        if (data.section === 'head' && data.column.index === 3 && (this.logoURL || pdfOptions?.logo)) {
           const img = new Image();
           img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
-          pdf.addImage(
-            img,
-            'JPEG',
-            data.cell.x + this.percentCalculation(data.cell.width, 32),
-            data.cell.y + 2,
-            20,
-            20,
-          );
+          const cellWidth = typeof data.cell.width === 'number' ? data.cell.width : parseFloat(data.cell.width);
+          const cellHeight = data.cell.height;
+          const logoWidth = 20;
+          const logoHeight = 20;
+          const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
+          const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
+          pdf.addImage(img, 'JPEG', xPosition, yPosition, logoWidth, logoHeight);
         }
       },
     };
@@ -403,6 +405,22 @@ export default class MapGenerator {
     // Generate the table
     // @ts-ignore
     pdf.autoTable(columns, [], options);
+
+    const informationRowOptions = {
+      ...options,
+      // @ts-ignore
+      startY: pdf.autoTable.previous.finalY,
+      bodyStyles: {
+        minCellHeight: 10,
+        lineColor: [0, 0, 0],
+        fontSize: 8.5,
+        halign: 'left',
+      },
+      cellWidth: this.width - 20,
+    };
+
+    // @ts-ignore
+    pdf.autoTable([columns], [infoRow], informationRowOptions);
 
     const { lng, lat } = map.getCenter();
     pdf.setProperties({
@@ -484,18 +502,23 @@ export default class MapGenerator {
    * @param date
    */
   private formatDate = (date: Date) => [
-    this.padTo2Digits(date.getDate()),
     this.padTo2Digits(date.getMonth() + 1),
+    this.padTo2Digits(date.getDate()),
     date.getFullYear(),
   ].join('/');
 
-  private percentCalculation = (
-    total: number | string,
-    percent: number | string,
-  ): number => {
-    const c = (parseFloat(total.toString()) * parseFloat(percent.toString())) / 100;
-    return parseFloat(c.toString());
-  };
+  // private percentCalculation = (
+  //   total: number | string,
+  //   percent: number | string,
+  // ): number => {
+  //   const c = (parseFloat(total.toString()) * parseFloat(percent.toString())) / 100;
+  //   return parseFloat(c.toString());
+  // };
 
-  private getMapScaleInFeets = (zoom: number) => Math.round(591657550.5 / 2 ** (zoom + 1) / 12).toFixed(0);
+  private getMapScaleInFeets(zoom: number): string {
+    console.log('Adjustment', this.adjustment);
+    return Math.round(
+      (591657550.500000 / 2 ** (zoom + 1 + Number(this.adjustment))) / 12,
+    ).toFixed(0);
+  }
 }
