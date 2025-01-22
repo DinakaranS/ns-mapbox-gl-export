@@ -119,7 +119,7 @@ export default class MapboxExportControl implements IControl {
       return 'Scale not available';
     }
     const zoom = this.map.getZoom();
-    console.log(this.options.adjustment);
+    // console.log(this.options.adjustment);
     const scaleValueInFeet = Math.round(
       (591657550.500000 / 2 ** (zoom + 1 + Number(this.options.adjustment))) / 12,
     ).toFixed(0);
