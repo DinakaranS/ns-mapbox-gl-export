@@ -84,15 +84,25 @@ export default class MapboxExportControl implements IControl {
       this.options = Object.assign(this.options, options);
     }
     this.onDocumentClick = this.onDocumentClick.bind(this);
-    this.OnConatinerClick = this.OnConatinerClick.bind(this);
-    this.OnConatinerRemove = this.OnConatinerRemove.bind(this);
+    this.OnContainerClick = this.OnContainerClick.bind(this);
+    this.OnContainerRemove = this.OnContainerRemove.bind(this);
+    this.OnToggleCrossHair = this.OnToggleCrossHair.bind(this);
   }
 
   public getDefaultPosition = (): ControlPosition => 'top-right';
 
-  public OnConatinerRemove(): void {
+  public OnContainerClick(): void {
+    this.toggleCrosshair(true);
+    this.togglePrintableArea(true);
+  }
+
+  public OnContainerRemove(): void {
     this.toggleCrosshair(false);
     this.togglePrintableArea(false);
+  }
+
+  public OnToggleCrossHair(): void {
+    this.toggleCrosshair(true);
   }
 
   public getTranslation(): Translation {
@@ -120,19 +130,27 @@ export default class MapboxExportControl implements IControl {
     }
     const zoom = this.map.getZoom();
     // console.log(this.options.adjustment);
+    // console.log(zoom);
     const scaleValueInFeet = Math.round(
-      (591657550.500000 / 2 ** (zoom + 1 + Number(this.options.adjustment))) / 12,
+      591657550.5 / 2 ** (zoom + 1 + Number(this.options.adjustment)) / 12,
     ).toFixed(0);
     this.previousScaleValue = scaleValueInFeet;
+    // console.log(scaleValueInFeet);
+
     return `1" = ${scaleValueInFeet} ft`;
   }
 
   private updateScaleOnZoom(): void {
     if (!this.map) return;
     this.map.on('zoom', () => {
-      const scaleInput = document.getElementById('mapbox-gl-export-scale') as HTMLInputElement;
+      const scaleInput = document.getElementById(
+        'mapbox-gl-export-scale',
+      ) as HTMLInputElement;
       if (scaleInput) {
-        scaleInput.value = this.calculateScale().replace('1" = ', '').replace(' ft', '').trim();
+        scaleInput.value = this.calculateScale()
+          .replace('1" = ', '')
+          .replace(' ft', '')
+          .trim();
       }
     });
   }
@@ -232,6 +250,8 @@ export default class MapboxExportControl implements IControl {
       );
 
       const orientValue = pageOrientation.value;
+      // console.log(pageSize.value);
+
       let pageSizeValue = JSON.parse(pageSize.value);
       let title: string = '';
       let subTitle: string = '';
@@ -244,6 +264,9 @@ export default class MapboxExportControl implements IControl {
       if (subTitleEl && subTitleEl.value) {
         subTitle = subTitleEl.value;
       }
+
+      // console.log(pageSizeValue);
+
       const mapGenerator = new MapGenerator(
         map,
         pageSizeValue,
@@ -284,28 +307,35 @@ export default class MapboxExportControl implements IControl {
     return this.controlContainer;
   }
 
-  public OnConatinerClick(): void {
-    this.toggleCrosshair(true);
-    this.togglePrintableArea(true);
-  }
-
   private resetToDefault(): void {
-    const pageSize: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-page-size');
+    const pageSize: HTMLSelectElement = <HTMLSelectElement>(
+      document.getElementById('mapbox-gl-export-page-size')
+    );
     pageSize.value = JSON.stringify(this.options.PageSize);
 
-    const pageOrientation: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-page-orientaiton');
+    const pageOrientation: HTMLSelectElement = <HTMLSelectElement>(
+      document.getElementById('mapbox-gl-export-page-orientaiton')
+    );
     pageOrientation.value = this.options.PageOrientation;
 
-    const formatType: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-format-type');
+    const formatType: HTMLSelectElement = <HTMLSelectElement>(
+      document.getElementById('mapbox-gl-export-format-type')
+    );
     formatType.value = this.options.Format;
 
-    const dpiType: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-dpi-type');
+    const dpiType: HTMLSelectElement = <HTMLSelectElement>(
+      document.getElementById('mapbox-gl-export-dpi-type')
+    );
     dpiType.value = this.options.DPI.toString();
 
-    const titleEl: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-pdf-title');
+    const titleEl: HTMLSelectElement = <HTMLSelectElement>(
+      document.getElementById('mapbox-gl-export-pdf-title')
+    );
     titleEl.value = '';
 
-    const subTitleEl: HTMLSelectElement = <HTMLSelectElement>document.getElementById('mapbox-gl-export-pdf-sub-title');
+    const subTitleEl: HTMLSelectElement = <HTMLSelectElement>(
+      document.getElementById('mapbox-gl-export-pdf-sub-title')
+    );
     subTitleEl.value = '';
   }
 
@@ -357,7 +387,10 @@ export default class MapboxExportControl implements IControl {
     scaleInput.style.width = '80px';
     scaleInput.style.marginLeft = '5px';
     scaleInput.readOnly = false;
-    scaleInput.value = this.calculateScale().replace('1" = ', '').replace(' ft', '').trim();
+    scaleInput.value = this.calculateScale()
+      .replace('1" = ', '')
+      .replace(' ft', '')
+      .trim();
     scaleInput.addEventListener('blur', () => {
       const value = scaleInput.value.trim();
       if (value === '') {
@@ -400,7 +433,9 @@ export default class MapboxExportControl implements IControl {
   }
 
   private restorePreviousScaleValue(): void {
-    const scaleInput = document.getElementById('mapbox-gl-export-scale') as HTMLInputElement;
+    const scaleInput = document.getElementById(
+      'mapbox-gl-export-scale',
+    ) as HTMLInputElement;
     if (scaleInput) {
       scaleInput.value = this.previousScaleValue;
     }
@@ -411,13 +446,15 @@ export default class MapboxExportControl implements IControl {
       console.error('Map is not available');
       return;
     }
-    const scaleValue = parseFloat(value.replace('1" = ', '').replace(' ft', '').trim());
+    const scaleValue = parseFloat(
+      value.replace('1" = ', '').replace(' ft', '').trim(),
+    );
     if (Number.isNaN(scaleValue)) {
       this.showErrorMessage('Invalid scale input');
       return;
     }
     const scaleInFeet = scaleValue * 12;
-    const zoomLevel = Math.log(591657550.500000 / scaleInFeet) / Math.log(2) - 1.07;
+    const zoomLevel = Math.log(591657550.5 / scaleInFeet) / Math.log(2) - 1.07;
     const maxZoom = this.map.getMaxZoom();
     const minZoom = this.map.getMinZoom();
     const clampedZoom = Math.min(Math.max(zoomLevel, minZoom), maxZoom);
@@ -581,7 +618,11 @@ export default class MapboxExportControl implements IControl {
     const format: HTMLSelectElement = <HTMLSelectElement>(
       document.getElementById('mapbox-gl-export-format-type')
     );
-    if (format && format.value && ['jpg', 'png', 'pdf', 'svg'].includes(format.value)) {
+    if (
+      format
+      && format.value
+      && ['jpg', 'png', 'pdf', 'svg'].includes(format.value)
+    ) {
       enableDisableElement(
         [
           'mapbox-gl-export-label-pdf-title',

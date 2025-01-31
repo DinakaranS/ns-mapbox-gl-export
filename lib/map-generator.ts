@@ -3,7 +3,7 @@ import 'jspdf-autotable';
 import { saveAs } from 'file-saver';
 import mapboxgl, { Map as MapboxMap } from 'mapbox-gl';
 import 'js-loading-overlay';
-import * as fabric from 'fabric';
+import { fabric } from 'fabric';
 
 type PDFOptions = {
   title?: string;
@@ -45,7 +45,6 @@ export const Size = {
   '9.8 x 13.9 (B4)': [353, 250],
   '6.9 x 9.8 (B5)': [250, 176],
   '4.9 x 6.9 (B6)': [176, 125],
-
 } as const;
 type Size = (typeof Size)[keyof typeof Size];
 
@@ -103,6 +102,8 @@ export default class MapGenerator {
     logoURL?: string,
     adjustment?: number,
   ) {
+    // console.log(size);
+
     this.map = map;
     this.width = size[0];
     this.height = size[1];
@@ -323,11 +324,22 @@ export default class MapGenerator {
     callback?: ((error: any, data: any) => void) | undefined,
   ) {
     const canvas = map.getCanvas();
+
+    let increaseHeight = this.height;
+    const heightDifference = this.height - this.width;
+    // console.log(heightDifference);
+
+    if (heightDifference > 0) {
+      if (heightDifference <= 55) {
+        increaseHeight += 30;
+      }
+    }
+
     const pdf = new jsPDF({
       orientation: this.width > this.height ? 'l' : 'p',
       unit: this.unit,
       compress: true,
-      format: [this.width, this.height],
+      format: [this.width, increaseHeight],
     });
     pdf.setFontSize(13);
     const width = pdf.internal.pageSize.getWidth();
@@ -381,23 +393,39 @@ export default class MapGenerator {
       },
       bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
       margin: {
-        top: 0, left: 10, right: 10, bottom: 0,
+        top: 0,
+        left: 10,
+        right: 10,
+        bottom: 0,
       },
       didDrawCell: (data: {
-            section: string;
-            column: { index: number; };
-            cell: { x: number; width: string | number; y: number; height: number; };
-        }) => {
-        if (data.section === 'head' && data.column.index === 3 && (this.logoURL || pdfOptions?.logo)) {
+        section: string;
+        column: { index: number };
+        cell: { x: number; width: string | number; y: number; height: number };
+      }) => {
+        if (
+          data.section === 'head'
+          && data.column.index === 3
+          && (this.logoURL || pdfOptions?.logo)
+        ) {
           const img = new Image();
           img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
-          const cellWidth = typeof data.cell.width === 'number' ? data.cell.width : parseFloat(data.cell.width);
+          const cellWidth = typeof data.cell.width === 'number'
+            ? data.cell.width
+            : parseFloat(data.cell.width);
           const cellHeight = data.cell.height;
           const logoWidth = 20;
           const logoHeight = 20;
           const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
           const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
-          pdf.addImage(img, 'JPEG', xPosition, yPosition, logoWidth, logoHeight);
+          pdf.addImage(
+            img,
+            'JPEG',
+            xPosition,
+            yPosition,
+            logoWidth,
+            logoHeight,
+          );
         }
       },
     };
@@ -424,7 +452,7 @@ export default class MapGenerator {
 
     const { lng, lat } = map.getCenter();
     pdf.setProperties({
-      title: map.getStyle()?.name,
+      title: 'Map PDF',
       subject: `center: [${lng}, ${lat}], zoom: ${map.getZoom()}`,
       creator: 'Nobel Systems Map Exporter',
       author: '(c)Nobel Systems',
@@ -454,6 +482,10 @@ export default class MapGenerator {
       );
       image.scaleToWidth(pxWidth);
       image.scaleToHeight(pxHeight);
+
+      // Set canvas size to match the image size
+      tmpCanvas.setWidth(pxWidth);
+      tmpCanvas.setHeight(pxHeight);
 
       tmpCanvas.add(image);
       const svg = tmpCanvas.toSVG({
@@ -516,9 +548,9 @@ export default class MapGenerator {
   // };
 
   private getMapScaleInFeets(zoom: number): string {
-    console.log('Adjustment', this.adjustment);
+    // console.log('Adjustment', this.adjustment);
     return Math.round(
-      (591657550.500000 / 2 ** (zoom + 1 + Number(this.adjustment))) / 12,
+      591657550.5 / 2 ** (zoom + 1 + Number(this.adjustment)) / 12,
     ).toFixed(0);
   }
 }
