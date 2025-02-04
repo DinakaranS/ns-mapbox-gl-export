@@ -45,6 +45,8 @@ export const Size = {
   '9.8 x 13.9 (B4)': [353, 250],
   '6.9 x 9.8 (B5)': [250, 176],
   '4.9 x 6.9 (B6)': [176, 125],
+  '22 x 34 (D)': [863, 558],
+  '24 x 36 (E)': [914, 609],
 } as const;
 type Size = (typeof Size)[keyof typeof Size];
 
@@ -102,8 +104,6 @@ export default class MapGenerator {
     logoURL?: string,
     adjustment?: number,
   ) {
-    // console.log(size);
-
     this.map = map;
     this.width = size[0];
     this.height = size[1];
@@ -327,7 +327,6 @@ export default class MapGenerator {
 
     let increaseHeight = this.height;
     const heightDifference = this.height - this.width;
-    // console.log(heightDifference);
 
     if (heightDifference > 0) {
       if (heightDifference <= 55) {
@@ -548,7 +547,6 @@ export default class MapGenerator {
   // };
 
   private getMapScaleInFeets(zoom: number): string {
-    // console.log('Adjustment', this.adjustment);
     return Math.round(
       591657550.5 / 2 ** (zoom + 1 + Number(this.adjustment)) / 12,
     ).toFixed(0);
