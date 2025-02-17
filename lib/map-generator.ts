@@ -115,28 +115,28 @@ export default class MapGenerator {
     this.adjustment = adjustment;
   }
 
-  private stringify(obj) {
-    let cache = [];
-    const str = JSON.stringify(obj, (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        // eslint-disable-next-line
-        // @ts-ignore
-        if (cache.indexOf(value) !== -1) {
-          // Circular reference found, discard key
-          return;
-        }
-        // Store value in our collection
-        // eslint-disable-next-line
-        // @ts-ignore
-        cache.push(value);
-      }
-      return value;
-    });
-    // eslint-disable-next-line
-    // @ts-ignore
-    cache = null; // reset the cache
-    return str;
-  }
+  // private stringify(obj) {
+  //   let cache = [];
+  //   const str = JSON.stringify(obj, (key, value) => {
+  //     if (typeof value === 'object' && value !== null) {
+  //       // eslint-disable-next-line
+  //       // @ts-ignore
+  //       if (cache.indexOf(value) !== -1) {
+  //         // Circular reference found, discard key
+  //         return;
+  //       }
+  //       // Store value in our collection
+  //       // eslint-disable-next-line
+  //       // @ts-ignore
+  //       cache.push(value);
+  //     }
+  //     return value;
+  //   });
+  //   // eslint-disable-next-line
+  //   // @ts-ignore
+  //   cache = null; // reset the cache
+  //   return str;
+  // }
 
   /**
    * Generate and download Map image
@@ -199,12 +199,11 @@ export default class MapGenerator {
     }
 
     const mapScale = this.getMapScaleInFeets(this.map.getZoom());
-    const s = this.stringify(style);
-    // Render map
+    const validStyle = style || '';
     const renderMap = new MapboxMap({
       accessToken: this.accessToken || mapboxgl.accessToken || '',
       container,
-      style: JSON.parse(s),
+      style: validStyle,
       center: this.map.getCenter(),
       zoom: this.map.getZoom(),
       bearing: this.map.getBearing(),
