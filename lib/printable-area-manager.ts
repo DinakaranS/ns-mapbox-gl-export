@@ -1,7 +1,5 @@
 import { Map as MapboxMap } from 'mapbox-gl';
-import {
-  Unit,
-} from './map-generator';
+import { Unit } from './map-generator';
 
 export default class PrintableAreaManager {
   private map: MapboxMap | undefined;
@@ -16,9 +14,7 @@ export default class PrintableAreaManager {
 
   private svgPath: SVGElement | undefined;
 
-  constructor(
-    map: MapboxMap | undefined,
-  ) {
+  constructor(map: MapboxMap | undefined) {
     this.map = map;
     if (this.map === undefined) {
       return;
@@ -56,11 +52,14 @@ export default class PrintableAreaManager {
   }
 
   private generateCutOut() {
-    if (this.map === undefined
-        || this.svgCanvas === undefined
-        || this.svgPath === undefined) {
+    if (
+      this.map === undefined
+      || this.svgCanvas === undefined
+      || this.svgPath === undefined
+    ) {
       return;
     }
+
     const width = this.toPixels(this.width);
     const height = this.toPixels(this.height);
     const clientWidth = this.map?.getCanvas().clientWidth;
@@ -70,9 +69,24 @@ export default class PrintableAreaManager {
     const startY = clientHeight / 2 - height / 2;
     const endY = startY + height;
 
+    // Check if any value is NaN or not finite
+    if (
+      !Number.isFinite(clientWidth)
+      || !Number.isFinite(clientHeight)
+      || !Number.isFinite(startX)
+      || !Number.isFinite(endX)
+      || !Number.isFinite(startY)
+      || !Number.isFinite(endY)
+    ) {
+      return;
+    }
+
     this.svgCanvas.setAttribute('width', `${clientWidth}px`);
     this.svgCanvas.setAttribute('height', `${clientHeight}px`);
-    this.svgPath.setAttribute('d', `M 0 0 L ${clientWidth} 0 L ${clientWidth} ${clientHeight} L 0 ${clientHeight} M ${startX} ${startY} L ${startX} ${endY} L ${endX} ${endY} L ${endX} ${startY}`);
+    this.svgPath.setAttribute(
+      'd',
+      `M 0 0 L ${clientWidth} 0 L ${clientWidth} ${clientHeight} L 0 ${clientHeight} M ${startX} ${startY} L ${startX} ${endY} L ${endX} ${endY} L ${endX} ${startY}`,
+    );
   }
 
   public destroy() {
@@ -87,11 +101,11 @@ export default class PrintableAreaManager {
   }
 
   /**
-     * Convert mm/inch to pixel
-     * @param length mm/inch length
-     * @param conversionFactor DPI value. default is 96.
-     */
-  private toPixels(length:number, conversionFactor = 96) {
+   * Convert mm/inch to pixel
+   * @param length mm/inch length
+   * @param conversionFactor DPI value. default is 96.
+   */
+  private toPixels(length: number, conversionFactor = 96) {
     if (this.unit === Unit.mm) {
       conversionFactor /= 25.4;
     }

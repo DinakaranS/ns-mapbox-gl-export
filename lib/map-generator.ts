@@ -118,7 +118,7 @@ export default class MapGenerator {
   // private stringify(obj) {
   //   let cache = [];
   //   const str = JSON.stringify(obj, (key, value) => {
-  //     if (typeof value === 'object' && value !== null) {
+  //     if (typeof value === "object" && value !== null) {
   //       // eslint-disable-next-line
   //       // @ts-ignore
   //       if (cache.indexOf(value) !== -1) {
@@ -199,7 +199,9 @@ export default class MapGenerator {
     }
 
     const mapScale = this.getMapScaleInFeets(this.map.getZoom());
-    const validStyle = style || '';
+
+    const validStyle = style || 'mapbox://styles/mapbox/streets-v11';
+
     const renderMap = new MapboxMap({
       accessToken: this.accessToken || mapboxgl.accessToken || '',
       container,
@@ -217,13 +219,45 @@ export default class MapGenerator {
     });
 
     // @ts-ignore
-    const images: any = (this.map.style.imageManager || {}).images || [];
-    if (images && Object.keys(images)?.length > 0) {
-      Object.keys(images).forEach((key) => {
-        if (!key) return;
-        if (!images[key].data) return;
-        renderMap.addImage(key, images[key].data);
-      });
+    // Ensure renderMap's style is fully loaded before adding images
+    const addImagesToRenderMap = () => {
+      // Get existing images from the image manager
+      const images: any = renderMap.style?.imageManager?.images || {};
+
+      if (images && Object.keys(images).length > 0) {
+        Object.keys(images).forEach((key) => {
+          if (!key || !images[key].data) return;
+          if (!renderMap.hasImage(key)) {
+            renderMap.addImage(key, images[key].data);
+          }
+        });
+      }
+
+      // Load and add a new image into renderMap
+      renderMap.loadImage(
+        'https://geoviewer.io/img/ns_marker.png',
+        (error, image: any) => {
+          if (error) {
+            console.error('Error loading image:', error);
+            return;
+          }
+
+          if (!renderMap.hasImage('gl-draw-ns-marker')) {
+            renderMap.addImage('gl-draw-ns-marker', image, { sdf: true });
+            console.log('Image added successfully.');
+          } else {
+            console.log('Image already exists.');
+          }
+        },
+      );
+    };
+
+    // 🔹 Wait until renderMap is fully loaded before adding images
+    if (!renderMap.isStyleLoaded()) {
+      console.log('Waiting for renderMap to load...');
+      renderMap.once('style.load', addImagesToRenderMap);
+    } else {
+      addImagesToRenderMap();
     }
 
     renderMap.once('idle', () => {
