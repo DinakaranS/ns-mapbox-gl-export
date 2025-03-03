@@ -87,6 +87,7 @@ export default class MapboxExportControl implements IControl {
     this.OnContainerClick = this.OnContainerClick.bind(this);
     this.OnContainerRemove = this.OnContainerRemove.bind(this);
     this.OnToggleCrossHair = this.OnToggleCrossHair.bind(this);
+    this.OnRemovePrint = this.OnRemovePrint.bind(this);
   }
 
   public getDefaultPosition = (): ControlPosition => 'top-right';
@@ -97,6 +98,15 @@ export default class MapboxExportControl implements IControl {
   }
 
   public OnContainerRemove(): void {
+    this.resetToDefault();
+    this.toggleCrosshair(false);
+    this.togglePrintableArea(false);
+  }
+
+  public OnRemovePrint(): void {
+    this.exportContainer.style.display = 'none';
+    this.exportButton.style.display = 'block';
+    this.resetToDefault();
     this.toggleCrosshair(false);
     this.togglePrintableArea(false);
   }
@@ -129,13 +139,10 @@ export default class MapboxExportControl implements IControl {
       return 'Scale not available';
     }
     const zoom = this.map.getZoom();
-    // console.log(this.options.adjustment);
-    // console.log(zoom);
     const scaleValueInFeet = Math.round(
       591657550.5 / 2 ** (zoom + 1 + Number(this.options.adjustment)) / 12,
     ).toFixed(0);
     this.previousScaleValue = scaleValueInFeet;
-    // console.log(scaleValueInFeet);
 
     return `1" = ${scaleValueInFeet} ft`;
   }
@@ -250,7 +257,6 @@ export default class MapboxExportControl implements IControl {
       );
 
       const orientValue = pageOrientation.value;
-      // console.log(pageSize.value);
 
       let pageSizeValue = JSON.parse(pageSize.value);
       let title: string = '';
@@ -264,8 +270,6 @@ export default class MapboxExportControl implements IControl {
       if (subTitleEl && subTitleEl.value) {
         subTitle = subTitleEl.value;
       }
-
-      // console.log(pageSizeValue);
 
       const mapGenerator = new MapGenerator(
         map,
@@ -484,7 +488,7 @@ export default class MapboxExportControl implements IControl {
     const okButton = document.createElement('button');
     okButton.textContent = 'OK';
     okButton.style.marginTop = '10px';
-    okButton.style.backgroundColor = '#0000CD';
+    okButton.style.backgroundColor = '#1E40AF';
     okButton.style.color = 'white';
     okButton.style.border = 'none';
     okButton.style.padding = '10px 20px';
