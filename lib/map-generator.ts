@@ -222,13 +222,22 @@ export default class MapGenerator {
     // Ensure renderMap's style is fully loaded before adding images
     const addImagesToRenderMap = () => {
       // Get existing images from the image manager
-      const images: any = renderMap.style?.imageManager?.images || {};
+      const images = renderMap.style?.imageManager?.images || {};
 
       if (images && Object.keys(images).length > 0) {
         Object.keys(images).forEach((key) => {
           if (!key || !images[key].data) return;
           if (!renderMap.hasImage(key)) {
-            renderMap.addImage(key, images[key].data);
+            const image = images[key];
+            if (image && typeof image.width === 'number' && typeof image.height === 'number' && image.data instanceof Uint8Array) {
+              renderMap.addImage(key, {
+                width: image.width,
+                height: image.height,
+                data: image.data,
+              });
+            } else {
+              console.error(`Invalid image object structure for key: ${key}`);
+            }
           }
         });
       }
@@ -236,15 +245,16 @@ export default class MapGenerator {
       // Load and add a new image into renderMap
       renderMap.loadImage(
         'https://geoviewer.io/img/ns_marker.png',
-        (error, image: any) => {
+        (error, image) => {
           if (error) {
             console.error('Error loading image:', error);
             return;
           }
-
           if (!renderMap.hasImage('gl-draw-ns-marker')) {
-            renderMap.addImage('gl-draw-ns-marker', image, { sdf: true });
-            console.log('Image added successfully.');
+            if (image) {
+              renderMap.addImage('gl-draw-ns-marker', image, { sdf: true });
+              console.log('Image added successfully.');
+            }
           } else {
             console.log('Image already exists.');
           }
@@ -279,7 +289,7 @@ export default class MapGenerator {
           );
           break;
         case Format.SVG:
-          this_.toSVG(canvas, fileName);
+          this_.toSVG(canvas, fileName, callback);
           break;
         default:
           console.error(`Invalid file format: ${this_.format}`);
@@ -330,17 +340,20 @@ export default class MapGenerator {
   private toJPEG(
     canvas: HTMLCanvasElement,
     fileName: string,
-    callback?: ((error: any, data: any) => void) | undefined,
+    callback?: ((error: any, data: Blob | null) => void),
   ) {
-    const uri = canvas.toDataURL('image/jpeg', 0.85);
-    if (callback) callback(null, uri);
-    else {
-      const a = document.createElement('a');
-      a.href = uri;
-      a.download = fileName;
-      a.click();
-      a.remove();
-    }
+    canvas.toBlob((blob) => {
+      if (callback) {
+        callback(null, blob);
+      } else {
+        const uri = canvas.toDataURL('image/jpeg', 0.85);
+        const a = document.createElement('a');
+        a.href = uri;
+        a.download = fileName;
+        a.click();
+        a.remove();
+      }
+    }, 'image/jpeg', 0.85);
   }
 
   /**
@@ -489,8 +502,12 @@ export default class MapGenerator {
       creator: 'Nobel Systems Map Exporter',
       author: '(c)Nobel Systems',
     });
-    if (callback) callback(null, pdf.output('blob'));
-    else pdf.save(fileName);
+    if (callback) {
+      const pdfBlob = pdf.output('blob');
+      callback(null, pdfBlob);
+    } else {
+      pdf.save(fileName);
+    }
   }
 
   /**
@@ -501,7 +518,7 @@ export default class MapGenerator {
    * @param canvas Canvas element
    * @param fileName file name
    */
-  private toSVG(canvas: HTMLCanvasElement, fileName: string) {
+  private toSVG(canvas: HTMLCanvasElement, fileName: string, callback?: ((error: any, data: any) => void) | undefined) {
     const uri = canvas.toDataURL('image/png');
     // @ts-ignore
     fabric.Image.fromURL(uri, (image) => {
@@ -535,11 +552,16 @@ export default class MapGenerator {
           height: pxHeight,
         },
       });
-      const a = document.createElement('a');
-      a.href = `data:application/xml,${encodeURIComponent(svg)}`;
-      a.download = fileName;
-      a.click();
-      a.remove();
+      if (callback) {
+        const blob = new Blob([svg], { type: 'image/svg+xml' });
+        callback(null, blob);
+      } else {
+        const a = document.createElement('a');
+        a.href = `data:application/xml,${encodeURIComponent(svg)}`;
+        a.download = fileName;
+        a.click();
+        a.remove();
+      }
     });
   }
 

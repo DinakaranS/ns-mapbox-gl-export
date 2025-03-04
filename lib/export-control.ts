@@ -35,6 +35,8 @@ type Options = {
   Local?: 'de' | 'en' | 'fr' | 'fi' | 'sv' | 'vi';
   logoURL?: string;
   adjustment?: number;
+  exportFile?: (file: Blob | string | null) => void;
+
 };
 
 const enableDisableElement = (ids: string[], display: string) => {
@@ -75,6 +77,7 @@ export default class MapboxExportControl implements IControl {
     accessToken: undefined,
     logoURL: undefined,
     adjustment: 0.07,
+    exportFile: undefined,
   };
 
   private previousScaleValue: string;
@@ -288,6 +291,72 @@ export default class MapboxExportControl implements IControl {
       );
     });
     this.exportContainer.appendChild(generateButton);
+
+    const shareButton = document.createElement('button');
+    shareButton.innerText = 'Share';
+    shareButton.classList.add('mapboxgl-share-icon');
+    shareButton.type = 'button';
+    shareButton.style.marginTop = '5px';
+
+    shareButton.addEventListener('click', () => {
+      const pageSize: HTMLSelectElement = <HTMLSelectElement>(
+        document.getElementById('mapbox-gl-export-page-size')
+      );
+      const pageOrientation: HTMLSelectElement = <HTMLSelectElement>(
+        document.getElementById('mapbox-gl-export-page-orientaiton')
+      );
+      const formatType: HTMLSelectElement = <HTMLSelectElement>(
+        document.getElementById('mapbox-gl-export-format-type')
+      );
+      const dpiType: HTMLSelectElement = <HTMLSelectElement>(
+        document.getElementById('mapbox-gl-export-dpi-type')
+      );
+      const titleEl: HTMLSelectElement = <HTMLSelectElement>(
+        document.getElementById('mapbox-gl-export-pdf-title')
+      );
+      const subTitleEl: HTMLSelectElement = <HTMLSelectElement>(
+        document.getElementById('mapbox-gl-export-pdf-sub-title')
+      );
+
+      const orientValue = pageOrientation.value;
+
+      let pageSizeValue = JSON.parse(pageSize.value);
+      let title: string = '';
+      let subTitle: string = '';
+      if (orientValue === PageOrientation.Portrait) {
+        pageSizeValue = pageSizeValue.reverse();
+      }
+      if (titleEl && titleEl.value) {
+        title = titleEl.value;
+      }
+      if (subTitleEl && subTitleEl.value) {
+        subTitle = subTitleEl.value;
+      }
+
+      const mapGenerator = new MapGenerator(
+        map,
+        pageSizeValue,
+        Number(dpiType.value),
+        formatType.value,
+        Unit.mm,
+        this.options.accessToken,
+        this.options.logoURL,
+        this.options.adjustment,
+      );
+
+      mapGenerator.generate(true, `map-export-${new Date().toJSON().slice(0, 10)}`, { title, subTitle }, (error, imageFile) => {
+        if (error) {
+          console.error('Error generating image:', error);
+        } else if (imageFile) {
+          console.log('in exports:', imageFile);
+          if (this.options.exportFile) {
+            this.options.exportFile(imageFile);
+          }
+        }
+      });
+    });
+
+    this.exportContainer.insertBefore(shareButton, this.closeButton);
 
     this.closeButton = document.createElement('button');
     this.closeButton.innerText = 'Cancel';
