@@ -371,37 +371,74 @@ export default class MapGenerator {
   ) {
     const canvas = map.getCanvas();
 
-    let increaseHeight = this.height;
-    const heightDifference = this.height - this.width;
+    // Define the maximum width and height for the image in the PDF
+    const maxWidth = this.width - 20; // Subtract margins
+    const maxHeight = this.height - 55; // Subtract space for title and other elements
 
-    if (heightDifference > 0) {
-      if (heightDifference <= 55) {
-        increaseHeight += 30;
-      }
-    }
+    // Stretch the image to fill the entire width of the PDF page
+    const imageWidth = maxWidth; // Use the full width of the PDF page
+    const imageHeight = (canvas.height / canvas.width) * imageWidth; // Maintain aspect ratio for height
 
+    // Calculate the y position to center the image vertically
+    const yPosition = 13 + (maxHeight - imageHeight) / 2;
+
+    // Create the PDF
     const pdf = new jsPDF({
       orientation: this.width > this.height ? 'l' : 'p',
       unit: this.unit,
       compress: true,
-      format: [this.width, increaseHeight],
+      format: [this.width, this.height],
     });
-    pdf.setFontSize(13);
-    const width = pdf.internal.pageSize.getWidth();
-    pdf.text((pdfOptions?.title || '').toString(), width / 2, 9, {
-      align: 'center',
-      maxWidth: this.width - 20,
-    });
+
+    // Add the title
+    // pdf.setFontSize(13);
+    // const width = pdf.internal.pageSize.getWidth();
+    // pdf.text((pdfOptions?.title || '').toString(), width / 2, 9, {
+    //   align: 'center',
+    //   maxWidth: this.width - 20,
+    // });
+
+    // Add the map image to the PDF
     pdf.addImage(
       canvas.toDataURL('image/png'),
       'png',
-      10,
-      13,
-      this.width - 20,
-      this.height - 55,
+      10, // x position (left-aligned)
+      yPosition, // y position (centered vertically)
+      imageWidth, // width (stretched to fill the page width)
+      imageHeight, // height (scaled to maintain aspect ratio)
       undefined,
       'FAST',
     );
+
+    // Add the title AFTER the map image to show it on top
+    // Add the title AFTER the map image to show it on top
+    pdf.setFontSize(13);
+    const width = pdf.internal.pageSize.getWidth();
+    const titleText = (pdfOptions?.title || '').toString() || ' '; // Ensure there's a space if no title is provided
+    // const textWidth = pdf.getTextWidth(titleText);
+    const titleHeight = 9; // Height for the title background
+    const padding = 2; // Padding for the background
+
+    // Set fill color to white for the background
+    pdf.setFillColor(255, 255, 255); // White background
+
+    // Draw a white rectangle to fill the entire width of the PDF
+    pdf.rect(
+      0, // x position (start at the left edge)
+      0, // y position (start at the top edge)
+      width, // fill the entire width of the PDF
+      titleHeight + padding * 2, // height with padding
+      'F', // 'F' means fill the rectangle
+    );
+
+    // Set text color to black
+    pdf.setTextColor(0, 0, 0);
+
+    // Add title text centered horizontally
+    pdf.text(titleText, width / 2, titleHeight / 2 + padding, {
+      align: 'center',
+      maxWidth: this.width - 20,
+    });
 
     // Define the table columns and rows
     const columns = [
@@ -425,8 +462,8 @@ export default class MapGenerator {
         overflow: 'linebreak',
         fontSize: 12,
         fontStyle: 'bold',
-        halign: 'center', // left, center, right
-        valign: 'middle', // top, middle, bott,
+        halign: 'center',
+        valign: 'middle',
       },
       headStyles: {
         fillColor: [255, 255, 255],
@@ -450,8 +487,8 @@ export default class MapGenerator {
       }) => {
         if (
           data.section === 'head'
-          && data.column.index === 3
-          && (this.logoURL || pdfOptions?.logo)
+            && data.column.index === 3
+            && (this.logoURL || pdfOptions?.logo)
         ) {
           const img = new Image();
           img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
@@ -502,6 +539,7 @@ export default class MapGenerator {
       creator: 'Nobel Systems Map Exporter',
       author: '(c)Nobel Systems',
     });
+
     if (callback) {
       const pdfBlob = pdf.output('blob');
       callback(null, pdfBlob);

@@ -166,6 +166,23 @@ export default class MapboxExportControl implements IControl {
   }
 
   public onAdd(map: MapboxMap): HTMLElement {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        this.exportContainer.style.display === 'block' // Check if exportContainer is open
+          && !this.exportContainer.contains(event.target as Node) // Check if click is outside exportContainer
+      ) {
+        this.resetToDefault();
+        this.exportContainer.style.display = 'none';
+        this.exportButton.style.display = 'block';
+
+        this.toggleCrosshair(false);
+        this.togglePrintableArea(false);
+
+        // Remove event listener after handling the outside click
+        document.removeEventListener('click', handleOutsideClick);
+      }
+    };
+
     this.map = map;
     this.controlContainer = document.createElement('div');
     this.controlContainer.classList.add('mapboxgl-ctrl');
@@ -181,6 +198,11 @@ export default class MapboxExportControl implements IControl {
       this.exportContainer.style.display = 'block';
       this.toggleCrosshair(true);
       this.togglePrintableArea(true);
+
+      // Add event listener for outside click when the export container is open
+      setTimeout(() => {
+        document.addEventListener('click', handleOutsideClick);
+      }, 100);
     });
     this.controlContainer.appendChild(this.exportButton);
     this.controlContainer.appendChild(this.exportContainer);
@@ -384,7 +406,7 @@ export default class MapboxExportControl implements IControl {
     const pageSize: HTMLSelectElement = <HTMLSelectElement>(
       document.getElementById('mapbox-gl-export-page-size')
     );
-    pageSize.value = JSON.stringify(this.options.PageSize);
+    pageSize.value = JSON.stringify(this.options.PageSize || Size['8.3 x 11.7 (A4)']);
 
     const pageOrientation: HTMLSelectElement = <HTMLSelectElement>(
       document.getElementById('mapbox-gl-export-page-orientaiton')
@@ -652,7 +674,7 @@ export default class MapboxExportControl implements IControl {
 
   private toggleCrosshair(state: boolean) {
     if (this.options.Crosshair === true) {
-      if (state === false) {
+      if (!state) {
         if (this.crosshair !== undefined) {
           this.crosshair.destroy();
           this.crosshair = undefined;
@@ -665,8 +687,8 @@ export default class MapboxExportControl implements IControl {
   }
 
   private togglePrintableArea(state: boolean) {
-    if (this.options.PrintableArea === true) {
-      if (state === false) {
+    if (this.options.PrintableArea) {
+      if (!state) {
         if (this.printableArea !== undefined) {
           this.printableArea.destroy();
           this.printableArea = undefined;
