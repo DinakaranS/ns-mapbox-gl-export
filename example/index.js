@@ -21,8 +21,8 @@ import '../css/styles.css';
         Crosshair: true,
         PrintableArea: true,
         Local: 'en',
-        additionalProps: { logoSize:[40,20] },
+        additionalProps: { logoSize:[40,20], showTitle: true, showFooter: true },
         logoURL: 'https://s3.amazonaws.com/dev.geoviewer.io/img/sejpa.jpeg',
-        accessToken:"pk.eyJ1IjoiYXJldGhhc2FtdWVsIiwiYSI6ImNpa2VkeXU2NjAwNDR1a20yMmV5aGZ3dDAifQ.qictWBxPjb9-SjxZ7ImS2g",
+        accessToken: '',
     }), 'top-right');
 })()

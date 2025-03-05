@@ -10,6 +10,8 @@ type PDFOptions = {
   subTitle?: string;
   logo?: string;
   scale?: string;
+  hideFooter?: boolean;
+  hideTitle?: boolean;
 };
 
 export const Format = {
@@ -28,26 +30,43 @@ export const Unit = {
 type Unit = (typeof Unit)[keyof typeof Unit];
 
 export const Size = {
-  // A0, A1, B0, B1 are not working well.
-  // A0: [1189, 841],
-  // A1: [841, 594],
-  '8.5 x 11 (LETTER)': [279, 216], // 8.5x11 - works
-  // TABLOID: [432,279] // 11x17 - not working currently prints to 11.68x8.27 in landscape
-  '16.5 x 23.4 (A2)': [594, 420],
-  '11.7 x 16.5 (A3)': [420, 297],
-  '8.3 x 11.7 (A4)': [297, 210],
-  '5.8 x 8.3 (A5)': [210, 148],
   '4.1 x 5.8 (A6)': [148, 105],
-  // B0: [1414, 1000],
-  // B1: [1000, 707],
-  '19.7 x 27.8 (B2)': [707, 500],
-  '13.9 x 19.7 (B3)': [500, 353],
-  '9.8 x 13.9 (B4)': [353, 250],
-  '6.9 x 9.8 (B5)': [250, 176],
   '4.9 x 6.9 (B6)': [176, 125],
+  '5.8 x 8.3 (A5)': [210, 148],
+  '6.9 x 9.8 (B5)': [250, 176],
+  '8.3 x 11.7 (A4)': [297, 210],
+  '8.5 x 11 (LETTER)': [279, 216], // 8.5x11 - works
+  '9.8 x 13.9 (B4)': [353, 250],
+  '11.7 x 16.5 (A3)': [420, 297],
+  '11 x 17 (TABLOID)': [420, 297],
+  '13.9 x 19.7 (B3)': [500, 353],
+  '16.5 x 23.4 (A2)': [594, 420],
+  '19.7 x 27.8 (B2)': [707, 500],
   '22 x 34 (D)': [863, 558],
   '24 x 36 (E)': [914, 609],
 } as const;
+
+// {
+//   // A0, A1, B0, B1 are not working well.
+//   // A0: [1189, 841],
+//   // A1: [841, 594],
+//   '8.5 x 11 (LETTER)': [279, 216], // 8.5x11 - works
+//   // TABLOID: [432,279] // 11x17 - not working currently prints to 11.68x8.27 in landscape
+//   '16.5 x 23.4 (A2)': [594, 420],
+//   '11.7 x 16.5 (A3)': [420, 297],
+//   '8.3 x 11.7 (A4)': [297, 210],
+//   '5.8 x 8.3 (A5)': [210, 148],
+//   '4.1 x 5.8 (A6)': [148, 105],
+//   // B0: [1414, 1000],
+//   // B1: [1000, 707],
+//   '19.7 x 27.8 (B2)': [707, 500],
+//   '13.9 x 19.7 (B3)': [500, 353],
+//   '9.8 x 13.9 (B4)': [353, 250],
+//   '6.9 x 9.8 (B5)': [250, 176],
+//   '4.9 x 6.9 (B6)': [176, 125],
+//   '22 x 34 (D)': [863, 558],
+//   '24 x 36 (E)': [914, 609],
+// } as const;
 type Size = (typeof Size)[keyof typeof Size];
 
 export const PageOrientation = {
@@ -403,134 +422,137 @@ export default class MapGenerator {
       canvas.toDataURL('image/png'),
       'png',
       10, // x position (left-aligned)
-      yPosition, // y position (centered vertically)
+      yPosition + (!pdfOptions?.hideTitle ? 0 : 15),
       imageWidth, // width (stretched to fill the page width)
-      imageHeight, // height (scaled to maintain aspect ratio)
+      imageHeight + (!pdfOptions?.hideFooter ? 0 : 15), // height (scaled to maintain aspect ratio)
       undefined,
       'FAST',
     );
 
-    // Add the title AFTER the map image to show it on top
-    // Add the title AFTER the map image to show it on top
-    pdf.setFontSize(13);
-    const width = pdf.internal.pageSize.getWidth();
-    const titleText = (pdfOptions?.title || '').toString() || ' '; // Ensure there's a space if no title is provided
-    // const textWidth = pdf.getTextWidth(titleText);
-    const titleHeight = 9; // Height for the title background
-    const padding = 2; // Padding for the background
+    if (!pdfOptions?.hideTitle) {
+      // Add the title AFTER the map image to show it on top
+      pdf.setFontSize(13);
+      const width = pdf.internal.pageSize.getWidth();
+      const titleText = (pdfOptions?.title || '').toString() || ' '; // Ensure there's a space if no title is provided
+      // const textWidth = pdf.getTextWidth(titleText);
+      const titleHeight = 9; // Height for the title background
+      const padding = 2; // Padding for the background
 
-    // Set fill color to white for the background
-    pdf.setFillColor(255, 255, 255); // White background
+      // Set fill color to white for the background
+      pdf.setFillColor(255, 255, 255); // White background
 
-    // Draw a white rectangle to fill the entire width of the PDF
-    pdf.rect(
-      0, // x position (start at the left edge)
-      0, // y position (start at the top edge)
-      width, // fill the entire width of the PDF
-      titleHeight + padding * 2, // height with padding
-      'F', // 'F' means fill the rectangle
-    );
+      // Draw a white rectangle to fill the entire width of the PDF
+      pdf.rect(
+        0, // x position (start at the left edge)
+        0, // y position (start at the top edge)
+        width, // fill the entire width of the PDF
+        titleHeight + padding * 2, // height with padding
+        'F', // 'F' means fill the rectangle
+      );
 
-    // Set text color to black
-    pdf.setTextColor(0, 0, 0);
+      // Set text color to black
+      pdf.setTextColor(0, 0, 0);
 
-    // Add title text centered horizontally
-    pdf.text(titleText, width / 2, titleHeight / 2 + padding, {
-      align: 'center',
-      maxWidth: this.width - 20,
-    });
+      // Add title text centered horizontally
+      pdf.text(titleText, width / 2, titleHeight / 2 + padding, {
+        align: 'center',
+        maxWidth: this.width - 20,
+      });
+    }
 
-    // Define the table columns and rows
-    const columns = [
-      pdfOptions?.scale,
-      pdfOptions?.subTitle,
-      this.formatDate(new Date()),
-      '',
-    ];
+    if (!pdfOptions?.hideFooter) {
+      // Define the table columns and rows
+      const columns = [
+        pdfOptions?.scale,
+        pdfOptions?.subTitle,
+        this.formatDate(new Date()),
+        '',
+      ];
 
-    const infoRow = [
-      'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.',
-    ];
+      const infoRow = [
+        'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.',
+      ];
 
-    // Set the table options
-    const options = {
-      theme: 'grid',
-      tableLineColor: [0, 0, 0],
-      tableLineWidth: 0.5,
-      startY: this.height - 40,
-      styles: {
-        overflow: 'linebreak',
-        fontSize: 12,
-        fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle',
-      },
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        lineColor: [0, 0, 0],
-        lineWidth: 0.5,
-        minCellHeight: 25,
-        cellWidth: (this.width - 20) / 4,
-      },
-      bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
-      margin: {
-        top: 0,
-        left: 10,
-        right: 10,
-        bottom: 0,
-      },
-      didDrawCell: (data: {
-        section: string;
-        column: { index: number };
-        cell: { x: number; width: string | number; y: number; height: number };
-      }) => {
-        if (
-          data.section === 'head'
-            && data.column.index === 3
-            && (this.logoURL || pdfOptions?.logo)
-        ) {
-          const img = new Image();
-          img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
-          const cellWidth = typeof data.cell.width === 'number'
-            ? data.cell.width
-            : parseFloat(data.cell.width);
-          const cellHeight = data.cell.height;
-          const logoWidth = 20;
-          const logoHeight = 20;
-          const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
-          const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
-          pdf.addImage(
-            img,
-            'JPEG',
-            xPosition,
-            yPosition,
-            logoWidth,
-            logoHeight,
-          );
-        }
-      },
-    };
+      // Set the table options
+      const options = {
+        theme: 'grid',
+        tableLineColor: [0, 0, 0],
+        tableLineWidth: 0.5,
+        startY: this.height - 40,
+        styles: {
+          overflow: 'linebreak',
+          fontSize: 12,
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
+          minCellHeight: 25,
+          cellWidth: (this.width - 20) / 4,
+        },
+        bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
+        margin: {
+          top: 0,
+          left: 10,
+          right: 10,
+          bottom: 0,
+        },
+        didDrawCell: (data: {
+          section: string;
+          column: { index: number };
+          cell: { x: number; width: string | number; y: number; height: number };
+        }) => {
+          if (
+            data.section === 'head'
+              && data.column.index === 3
+              && (this.logoURL || pdfOptions?.logo)
+          ) {
+            const img = new Image();
+            img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
+            const cellWidth = typeof data.cell.width === 'number'
+              ? data.cell.width
+              : parseFloat(data.cell.width);
+            const cellHeight = data.cell.height;
+            const logoWidth = 20;
+            const logoHeight = 20;
+            const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
+            const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
+            pdf.addImage(
+              img,
+              'JPEG',
+              xPosition,
+              yPosition,
+              logoWidth,
+              logoHeight,
+            );
+          }
+        },
+      };
 
-    // Generate the table
-    // @ts-ignore
-    pdf.autoTable(columns, [], options);
-
-    const informationRowOptions = {
-      ...options,
+      // Generate the table
       // @ts-ignore
-      startY: pdf.autoTable.previous.finalY,
-      bodyStyles: {
-        minCellHeight: 10,
-        lineColor: [0, 0, 0],
-        fontSize: 8.5,
-        halign: 'left',
-      },
-      cellWidth: this.width - 20,
-    };
+      pdf.autoTable(columns, [], options);
 
-    // @ts-ignore
-    pdf.autoTable([columns], [infoRow], informationRowOptions);
+      const informationRowOptions = {
+        ...options,
+        // @ts-ignore
+        startY: pdf.autoTable.previous.finalY,
+        bodyStyles: {
+          minCellHeight: 10,
+          lineColor: [0, 0, 0],
+          fontSize: 8.5,
+          halign: 'left',
+        },
+        cellWidth: this.width - 20,
+      };
+
+      // @ts-ignore
+      pdf.autoTable([columns], [infoRow], informationRowOptions);
+    }
 
     const { lng, lat } = map.getCenter();
     pdf.setProperties({

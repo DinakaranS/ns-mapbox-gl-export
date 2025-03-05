@@ -36,7 +36,7 @@ type Options = {
   logoURL?: string;
   adjustment?: number;
   exportFile?: (file: Blob | string | null) => void;
-
+  additionalProps?: Record<string, any>;
 };
 
 const enableDisableElement = (ids: string[], display: string) => {
@@ -78,6 +78,7 @@ export default class MapboxExportControl implements IControl {
     logoURL: undefined,
     adjustment: 0.07,
     exportFile: undefined,
+    additionalProps: {},
   };
 
   private previousScaleValue: string;
@@ -309,7 +310,7 @@ export default class MapboxExportControl implements IControl {
       mapGenerator.generate(
         true,
         `map-export-${new Date().toJSON().slice(0, 10)}`,
-        { title, subTitle },
+        { title, subTitle, ...this.options.additionalProps },
       );
     });
     this.exportContainer.appendChild(generateButton);
@@ -366,11 +367,11 @@ export default class MapboxExportControl implements IControl {
         this.options.adjustment,
       );
 
-      mapGenerator.generate(true, `map-export-${new Date().toJSON().slice(0, 10)}`, { title, subTitle }, (error, imageFile) => {
+      mapGenerator.generate(true, `map-export-${new Date().toJSON().slice(0, 10)}`, { title, subTitle, ...this.options.additionalProps }, (error, imageFile) => {
         if (error) {
           console.error('Error generating image:', error);
         } else if (imageFile) {
-          console.log('in exports:', imageFile);
+          // console.log('in exports:', imageFile);
           if (this.options.exportFile) {
             this.options.exportFile(imageFile);
           }
