@@ -221,6 +221,10 @@ export default class MapGenerator {
 
     const validStyle = style || 'mapbox://styles/mapbox/streets-v11';
 
+    this.map.setPadding({
+      top: 0, right: 0, bottom: 0, left: 0,
+    });
+
     const renderMap = new MapboxMap({
       accessToken: this.accessToken || mapboxgl.accessToken || '',
       container,
@@ -248,7 +252,12 @@ export default class MapGenerator {
           if (!key || !images[key].data) return;
           if (!renderMap.hasImage(key)) {
             const image = images[key];
-            if (image && typeof image.width === 'number' && typeof image.height === 'number' && image.data instanceof Uint8Array) {
+            if (
+              image
+              && typeof image.width === 'number'
+              && typeof image.height === 'number'
+              && image.data instanceof Uint8Array
+            ) {
               renderMap.addImage(key, {
                 width: image.width,
                 height: image.height,
@@ -359,20 +368,24 @@ export default class MapGenerator {
   private toJPEG(
     canvas: HTMLCanvasElement,
     fileName: string,
-    callback?: ((error: any, data: Blob | null) => void),
+    callback?: (error: any, data: Blob | null) => void,
   ) {
-    canvas.toBlob((blob) => {
-      if (callback) {
-        callback(null, blob);
-      } else {
-        const uri = canvas.toDataURL('image/jpeg', 0.85);
-        const a = document.createElement('a');
-        a.href = uri;
-        a.download = fileName;
-        a.click();
-        a.remove();
-      }
-    }, 'image/jpeg', 0.85);
+    canvas.toBlob(
+      (blob) => {
+        if (callback) {
+          callback(null, blob);
+        } else {
+          const uri = canvas.toDataURL('image/jpeg', 0.85);
+          const a = document.createElement('a');
+          a.href = uri;
+          a.download = fileName;
+          a.click();
+          a.remove();
+        }
+      },
+      'image/jpeg',
+      0.85,
+    );
   }
 
   /**
@@ -390,16 +403,27 @@ export default class MapGenerator {
   ) {
     const canvas = map.getCanvas();
 
-    // Determine if the title/footer should be hidden.
-    const hideTitle = pdfOptions && pdfOptions.hideTitle;
-    const hideFooter = pdfOptions && pdfOptions.hideFooter;
-    const titleHeight = hideTitle ? 5 : 10; // Reserve 10px for the title if not hidden.
-    const footerHeight = hideFooter ? 5 : 27; // Reserve 27px for the footer if not hidden.
-    const sideMargin = 5; // 5px margin for left and right edges.
-    const titleText = pdfOptions?.title || '';
-    const titleFontSize = 10; // Font size for the title.
+    // Define the maximum width and height for the image in the PDF
+    const maxWidth = this.width - 20; // Subtract margins
+    const maxHeight = this.height - 55; // Subtract space for title and other elements
 
-    // Create the PDF instance.
+    // Stretch the image to fill the entire width of the PDF page
+    const imageWidth = maxWidth; // Use the full width of the PDF page
+    let imageHeight = (canvas.height / canvas.width) * imageWidth;
+
+    // Calculate the y position to center the image vertically
+
+    let yPosition = 13 + (maxHeight - imageHeight) / 2;
+
+    // If hideTitle is true and hideFooter is false, add 7 to yPosition
+    if (!pdfOptions?.hideTitle && pdfOptions?.hideFooter) {
+      yPosition += 15;
+    }
+    if (this.height > this.width) {
+      imageHeight += 12;
+      yPosition -= 5;
+    }
+    // Create the PDF
     const pdf = new jsPDF({
       orientation: this.width > this.height ? 'l' : 'p',
       unit: this.unit,
@@ -407,93 +431,156 @@ export default class MapGenerator {
       format: [this.width, this.height],
     });
 
-    // Add title if not hidden.
-    if (!hideTitle) {
-      pdf.setFontSize(titleFontSize);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(titleText, this.width / 2, 7, { align: 'center' });
-    }
+    // Add the title
+    // pdf.setFontSize(13);
+    // const width = pdf.internal.pageSize.getWidth();
+    // pdf.text((pdfOptions?.title || '').toString(), width / 2, 9, {
+    //   align: 'center',
+    //   maxWidth: this.width - 20,
+    // });
 
-    // Calculate the image dimensions.
-    const imageX = sideMargin;
-    const imageY = titleHeight;
-    const imageWidth = this.width - 2 * sideMargin;
-    const imageHeight = this.height - titleHeight - footerHeight;
+    // Add the map image to the PDF
     pdf.addImage(
       canvas.toDataURL('image/png'),
       'png',
-      imageX,
-      imageY,
-      imageWidth,
+      10, // x position (left-aligned)
+      yPosition + (!pdfOptions?.hideTitle ? 0 : 15),
+      imageWidth, // width (stretched to fill the page width)
       imageHeight,
       undefined,
       'FAST',
     );
 
-    // Draw footer if not hidden.
-    if (!hideFooter) {
-      const footerY = this.height - footerHeight;
+    if (!pdfOptions?.hideTitle) {
+      // Add the title AFTER the map image to show it on top
+      pdf.setFontSize(13);
+      const width = pdf.internal.pageSize.getWidth();
+      const titleText = (pdfOptions?.title || '').toString() || ' '; // Ensure there's a space if no title is provided
+      // const textWidth = pdf.getTextWidth(titleText);
+      const titleHeight = 9; // Height for the title background
+      const padding = 2; // Padding for the background
 
-      // --- Top 16px: Four equally divided grids with borders ---
-      const gridHeight = 16;
-      const usableWidth = this.width - 2 * sideMargin;
-      const columnWidth = usableWidth / 4;
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold'); // Bold text for grids
+      // Set fill color to white for the background
+      pdf.setFillColor(255, 255, 255); // White background
 
-      // Draw borders for each grid cell and add content.
-      for (let i = 0; i < 4; i++) {
-        const cellX = sideMargin + i * columnWidth;
-        pdf.rect(cellX, footerY, columnWidth, gridHeight);
-      }
+      // Draw a white rectangle to fill the entire width of the PDF
+      pdf.rect(
+        0, // x position (start at the left edge)
+        0, // y position (start at the top edge)
+        width, // fill the entire width of the PDF
+        titleHeight + padding * 2, // height with padding
+        'F', // 'F' means fill the rectangle
+      );
 
-      // Grid 1: Scale (placeholder).
-      const col1CenterX = sideMargin + columnWidth / 2;
-      pdf.setFontSize(9);
-      pdf.text(pdfOptions?.scale || '', col1CenterX, footerY + gridHeight / 2 + 3, { align: 'center' });
+      // Set text color to black
+      pdf.setTextColor(0, 0, 0);
 
-      // Grid 2: pdfOptions.subTitle (if provided).
-      const col2CenterX = sideMargin + columnWidth + columnWidth / 2;
-      const subTitle = (pdfOptions && pdfOptions.subTitle) ? pdfOptions.subTitle : '';
-      pdf.setFontSize(9);
-      pdf.text(subTitle, col2CenterX, footerY + gridHeight / 2 + 3, { align: 'center' });
-
-      // Grid 3: Date.
-      const col3CenterX = sideMargin + 2 * columnWidth + columnWidth / 2;
-      const dateText = this.formatDate(new Date());
-      pdf.setFontSize(9);
-      pdf.text(dateText, col3CenterX, footerY + gridHeight / 2 + 3, { align: 'center' });
-
-      // Grid 4: Logo image from URL.
-      const col4X = sideMargin + 3 * columnWidth;
-      const col4Y = footerY;
-      // Calculate maximum dimensions.
-      const maxWidth = columnWidth * 0.8;
-      const maxHeight = gridHeight * 0.8;
-      // For a round logo, choose a square dimension to preserve aspect ratio.
-      const logoDimension = Math.min(maxWidth, maxHeight);
-      const logoX = col4X + (columnWidth - logoDimension) / 2;
-      const logoY = col4Y + (gridHeight - logoDimension) / 2;
-      try {
-        // Assumes that this.logoURL is a valid data URL (e.g., "data:image/png;base64,...").
-        pdf.addImage(this.logoURL || '', 'PNG', logoX, logoY, logoDimension, logoDimension);
-      } catch (error) {
-        // Fallback: if adding the image fails, print the URL as bold text.
-        pdf.setFontSize(6);
-        pdf.text(this.logoURL || '', col4X + columnWidth / 2, footerY + gridHeight / 2 + 3, { align: 'center' });
-      }
-
-      // --- Bottom (remaining): Disclaimer with border ---
-      const disclaimerHeight = this.width > this.height ? 6 : 8;
-      const disclaimerY = footerY + gridHeight;
-      pdf.rect(sideMargin, disclaimerY, usableWidth, disclaimerHeight);
-      pdf.setFontSize(this.width > this.height ? 6 : 5);
-      pdf.setFont('helvetica', 'normal'); // Normal font for disclaimer
-      const disclaimerText = 'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.';
-      pdf.text(disclaimerText, sideMargin + 1, disclaimerY + disclaimerHeight / 2 + 1, { maxWidth: usableWidth - 2, align: 'left' });
+      // Add title text centered horizontally
+      pdf.text(titleText, width / 2, titleHeight / 2 + padding, {
+        align: 'center',
+        maxWidth: this.width - 20,
+      });
     }
 
-    // Set PDF properties.
+    if (!pdfOptions?.hideFooter) {
+      // Define the table columns and rows
+      const columns = [
+        pdfOptions?.scale,
+        pdfOptions?.subTitle,
+        this.formatDate(new Date()),
+        '',
+      ];
+
+      const infoRow = [
+        'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.',
+      ];
+
+      // Set the table options
+      const options = {
+        theme: 'grid',
+        tableLineColor: [0, 0, 0],
+        tableLineWidth: 0.5,
+        startY: this.height - 40,
+        styles: {
+          overflow: 'linebreak',
+          fontSize: 12,
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5,
+          minCellHeight: 25,
+          cellWidth: (this.width - 20) / 4,
+        },
+        bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
+        margin: {
+          top: 0,
+          left: 10,
+          right: 10,
+          bottom: 0,
+        },
+        didDrawCell: (data: {
+          section: string;
+          column: { index: number };
+          cell: {
+            x: number;
+            width: string | number;
+            y: number;
+            height: number;
+          };
+        }) => {
+          if (
+            data.section === 'head'
+            && data.column.index === 3
+            && (this.logoURL || pdfOptions?.logo)
+          ) {
+            const img = new Image();
+            img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
+            const cellWidth = typeof data.cell.width === 'number'
+              ? data.cell.width
+              : parseFloat(data.cell.width);
+            const cellHeight = data.cell.height;
+            const logoWidth = 20;
+            const logoHeight = 20;
+            const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
+            const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
+            pdf.addImage(
+              img,
+              'JPEG',
+              xPosition,
+              yPosition,
+              logoWidth,
+              logoHeight,
+            );
+          }
+        },
+      };
+
+      // Generate the table
+      // @ts-ignore
+      pdf.autoTable(columns, [], options);
+
+      const informationRowOptions = {
+        ...options,
+        // @ts-ignore
+        startY: pdf.autoTable.previous.finalY,
+        bodyStyles: {
+          minCellHeight: 10,
+          lineColor: [0, 0, 0],
+          fontSize: 8.5,
+          halign: 'left',
+        },
+        cellWidth: this.width - 20,
+      };
+
+      // @ts-ignore
+      pdf.autoTable([columns], [infoRow], informationRowOptions);
+    }
+
     const { lng, lat } = map.getCenter();
     pdf.setProperties({
       title: 'Map PDF',
@@ -518,7 +605,11 @@ export default class MapGenerator {
    * @param canvas Canvas element
    * @param fileName file name
    */
-  private toSVG(canvas: HTMLCanvasElement, fileName: string, callback?: ((error: any, data: any) => void) | undefined) {
+  private toSVG(
+    canvas: HTMLCanvasElement,
+    fileName: string,
+    callback?: ((error: any, data: any) => void) | undefined,
+  ) {
     const uri = canvas.toDataURL('image/png');
     // @ts-ignore
     fabric.Image.fromURL(uri, (image) => {

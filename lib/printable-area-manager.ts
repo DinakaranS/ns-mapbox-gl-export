@@ -14,15 +14,24 @@ export default class PrintableAreaManager {
 
   private svgPath: SVGElement | undefined;
 
+  private titleCheck: boolean;
+
+  private subTitleCheck: boolean;
+
   constructor(map: MapboxMap | undefined) {
     this.map = map;
+    this.titleCheck = true;
+    this.subTitleCheck = true;
+
     if (this.map === undefined) {
       return;
     }
+
     this.destroy = this.destroy.bind(this);
     this.updateArea = this.updateArea.bind(this);
     this.mapResize = this.mapResize.bind(this);
     this.map.on('resize', this.mapResize);
+
     const clientWidth = this.map?.getCanvas().clientWidth;
     const clientHeight = this.map?.getCanvas().clientHeight;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -31,10 +40,12 @@ export default class PrintableAreaManager {
     svg.style.left = '0px';
     svg.setAttribute('width', `${clientWidth}px`);
     svg.setAttribute('height', `${clientHeight}px`);
+
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('style', 'fill:#888888;stroke-width:0');
     path.setAttribute('fill-opacity', '0.5');
     svg.append(path);
+
     this.map?.getCanvasContainer().appendChild(svg);
     this.svgCanvas = svg;
     this.svgPath = path;
@@ -44,10 +55,23 @@ export default class PrintableAreaManager {
     this.generateCutOut();
   }
 
-  public updateArea(width: number, height: number) {
+  public updateArea(
+    width: number,
+    height: number,
+    titleCheck?: boolean,
+    subTitleCheck?: boolean,
+  ) {
     this.width = width;
     this.height = height;
     this.unit = Unit.mm;
+
+    if (titleCheck !== undefined) {
+      this.titleCheck = titleCheck;
+    }
+    if (subTitleCheck !== undefined) {
+      this.subTitleCheck = subTitleCheck;
+    }
+
     this.generateCutOut();
   }
 
@@ -64,12 +88,27 @@ export default class PrintableAreaManager {
     const height = this.toPixels(this.height);
     const clientWidth = this.map?.getCanvas().clientWidth;
     const clientHeight = this.map?.getCanvas().clientHeight;
+
     const startX = clientWidth / 2 - width / 2;
     const endX = startX + width;
-    const startY = clientHeight / 2 - height / 2;
-    const endY = startY + height;
+    let startY = clientHeight / 2 - height / 2;
+    let endY = startY + height;
 
-    // Check if any value is NaN or not finite
+    // Adjust startY and endY based on titleCheck and subTitleCheck
+    if (this.titleCheck) {
+      startY += 84;
+    }
+    if (this.subTitleCheck) {
+      endY -= 74;
+    }
+
+    if (this.titleCheck && !this.subTitleCheck) {
+      startY -= 60;
+    }
+
+    if (!this.titleCheck && this.subTitleCheck) {
+      endY -= 72;
+    }
     if (
       !Number.isFinite(clientWidth)
       || !Number.isFinite(clientHeight)
@@ -78,6 +117,7 @@ export default class PrintableAreaManager {
       || !Number.isFinite(startY)
       || !Number.isFinite(endY)
     ) {
+      // Check if any value is NaN or not finite
       return;
     }
 
@@ -85,7 +125,8 @@ export default class PrintableAreaManager {
     this.svgCanvas.setAttribute('height', `${clientHeight}px`);
     this.svgPath.setAttribute(
       'd',
-      `M 0 0 L ${clientWidth} 0 L ${clientWidth} ${clientHeight} L 0 ${clientHeight} M ${startX} ${startY} L ${startX} ${endY} L ${endX} ${endY} L ${endX} ${startY}`,
+      `M 0 0 L ${clientWidth} 0 L ${clientWidth} ${clientHeight} L 0 ${clientHeight} 
+     M ${startX} ${startY} L ${startX} ${endY} L ${endX} ${endY} L ${endX} ${startY}`,
     );
   }
 
