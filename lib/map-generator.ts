@@ -166,177 +166,181 @@ export default class MapGenerator {
     pdfOptions?: PDFOptions,
     callback?: (error: any, data: any) => void,
   ) {
-    const this_ = this;
+    try {
+      const this_ = this;
 
-    if (loader) {
-      // see documentation for JS Loading Overray library
-      // https://js-loading-overlay.muhdfaiz.com
-      // @ts-ignore
-      JsLoadingOverlay.show({
-        overlayBackgroundColor: '#5D5959',
-        overlayOpacity: '0.6',
-        spinnerIcon: 'ball-spin',
-        spinnerColor: '#5733d6',
-        spinnerSize: '2x',
-        overlayIDName: 'overlay',
-        spinnerIDName: 'spinner',
-        offsetX: 0,
-        offsetY: 0,
-        containerID: null,
-        lockScroll: false,
-        overlayZIndex: 9998,
-        spinnerZIndex: 9999,
-      });
-    }
-    // Calculate pixel ratio
-    const actualPixelRatio: number = window.devicePixelRatio;
-    Object.defineProperty(window, 'devicePixelRatio', {
-      get() {
-        return this_.dpi / 96;
-      },
-    });
-    // Create map container
-    const hidden = document.createElement('div');
-    hidden.className = 'hidden-map';
-    document.body.appendChild(hidden);
-    const container = document.createElement('div');
-    container.style.width = this.toPixels(this.width);
-    container.style.height = this.toPixels(this.height);
-    hidden.appendChild(container);
-
-    const style = this.map.getStyle();
-    if (style) {
-      if (style.sources) {
-        const sources = style.sources;
-        Object.keys(sources).forEach((name) => {
-          const src = sources[name];
-          Object.keys(src).forEach((key) => {
-            if (!src[key]) delete src[key];
-          });
+      if (loader) {
+        // see documentation for JS Loading Overray library
+        // https://js-loading-overlay.muhdfaiz.com
+        // @ts-ignore
+        JsLoadingOverlay.show({
+          overlayBackgroundColor: '#5D5959',
+          overlayOpacity: '0.6',
+          spinnerIcon: 'ball-spin',
+          spinnerColor: '#5733d6',
+          spinnerSize: '2x',
+          overlayIDName: 'overlay',
+          spinnerIDName: 'spinner',
+          offsetX: 0,
+          offsetY: 0,
+          containerID: null,
+          lockScroll: false,
+          overlayZIndex: 9998,
+          spinnerZIndex: 9999,
         });
       }
-    }
-
-    const mapScale = this.getMapScaleInFeets(this.map.getZoom());
-
-    const validStyle = style || 'mapbox://styles/mapbox/streets-v11';
-
-    this.map.setPadding({
-      top: 0, right: 0, bottom: 0, left: 0,
-    });
-
-    const renderMap = new MapboxMap({
-      accessToken: this.accessToken || mapboxgl.accessToken || '',
-      container,
-      style: validStyle,
-      center: this.map.getCenter(),
-      zoom: this.map.getZoom(),
-      bearing: this.map.getBearing(),
-      pitch: this.map.getPitch(),
-      interactive: false,
-      preserveDrawingBuffer: true,
-      fadeDuration: 0,
-      attributionControl: false,
-      // hack to read transfrom request callback function
-      transformRequest: (this.map as any)._requestManager._transformRequestFn,
-    });
-
-    // @ts-ignore
-    // Ensure renderMap's style is fully loaded before adding images
-    const addImagesToRenderMap = () => {
-      // Get existing images from the image manager
-      const images = renderMap.style?.imageManager?.images || {};
-
-      if (images && Object.keys(images).length > 0) {
-        Object.keys(images).forEach((key) => {
-          if (!key || !images[key].data) return;
-          if (!renderMap.hasImage(key)) {
-            const image = images[key];
-            if (
-              image
-              && typeof image.width === 'number'
-              && typeof image.height === 'number'
-              && image.data instanceof Uint8Array
-            ) {
-              renderMap.addImage(key, {
-                width: image.width,
-                height: image.height,
-                data: image.data,
-              });
-            } else {
-              console.error(`Invalid image object structure for key: ${key}`);
-            }
-          }
-        });
-      }
-
-      // Load and add a new image into renderMap
-      renderMap.loadImage(
-        'https://geoviewer.io/img/ns_marker.png',
-        (error, image) => {
-          if (error) {
-            console.error('Error loading image:', error);
-            return;
-          }
-          if (!renderMap.hasImage('gl-draw-ns-marker')) {
-            if (image) {
-              renderMap.addImage('gl-draw-ns-marker', image, { sdf: true });
-              console.log('Image added successfully.');
-            }
-          } else {
-            console.log('Image already exists.');
-          }
-        },
-      );
-    };
-
-    // 🔹 Wait until renderMap is fully loaded before adding images
-    if (!renderMap.isStyleLoaded()) {
-      console.log('Waiting for renderMap to load...');
-      renderMap.once('style.load', addImagesToRenderMap);
-    } else {
-      addImagesToRenderMap();
-    }
-
-    renderMap.once('idle', () => {
-      const canvas = renderMap.getCanvas();
-      const fileName = `${fName || 'map'}.${this_.format}`;
-      switch (this_.format) {
-        case Format.PNG:
-          this_.toPNG(canvas, fileName, callback);
-          break;
-        case Format.JPEG:
-          this_.toJPEG(canvas, fileName, callback);
-          break;
-        case Format.PDF:
-          this_.toPDF(
-            renderMap,
-            fileName,
-            { scale: `1'' = ${mapScale.toString()} ft`, ...pdfOptions },
-            callback,
-          );
-          break;
-        case Format.SVG:
-          this_.toSVG(canvas, fileName, callback);
-          break;
-        default:
-          console.error(`Invalid file format: ${this_.format}`);
-          break;
-      }
-
-      renderMap.remove();
-      hidden.parentNode?.removeChild(hidden);
+      // Calculate pixel ratio
+      const actualPixelRatio: number = window.devicePixelRatio;
       Object.defineProperty(window, 'devicePixelRatio', {
         get() {
-          return actualPixelRatio;
+          return this_.dpi / 96;
         },
       });
+      // Create map container
+      const hidden = document.createElement('div');
+      hidden.className = 'hidden-map';
+      document.body.appendChild(hidden);
+      const container = document.createElement('div');
+      container.style.width = this.toPixels(this.width);
+      container.style.height = this.toPixels(this.height);
+      hidden.appendChild(container);
 
+      const style = this.map.getStyle();
+      if (style) {
+        if (style.sources) {
+          const sources = style.sources;
+          Object.keys(sources).forEach((name) => {
+            const src = sources[name];
+            Object.keys(src).forEach((key) => {
+              if (!src[key]) delete src[key];
+            });
+          });
+        }
+      }
+
+      const mapScale = this.getMapScaleInFeets(this.map.getZoom());
+
+      const validStyle = style || 'mapbox://styles/mapbox/streets-v11';
+
+      const renderMap = new MapboxMap({
+        accessToken: this.accessToken || mapboxgl.accessToken || '',
+        container,
+        style: validStyle,
+        center: this.map.getCenter(),
+        zoom: this.map.getZoom(),
+        bearing: this.map.getBearing(),
+        pitch: this.map.getPitch(),
+        interactive: false,
+        preserveDrawingBuffer: true,
+        fadeDuration: 0,
+        attributionControl: false,
+        // hack to read transfrom request callback function
+        transformRequest: (this.map as any)._requestManager._transformRequestFn,
+      });
+
+      // @ts-ignore
+      // Ensure renderMap's style is fully loaded before adding images
+      const addImagesToRenderMap = () => {
+        // Get existing images from the image manager
+        const images = renderMap.style?.imageManager?.images || {};
+
+        if (images && Object.keys(images).length > 0) {
+          Object.keys(images).forEach((key) => {
+            if (!key || !images[key].data) return;
+            if (!renderMap.hasImage(key)) {
+              const image = images[key];
+              if (
+                image
+                  && typeof image.width === 'number'
+                  && typeof image.height === 'number'
+                  && image.data instanceof Uint8Array
+              ) {
+                renderMap.addImage(key, {
+                  width: image.width,
+                  height: image.height,
+                  data: image.data,
+                });
+              } else {
+                console.error(`Invalid image object structure for key: ${key}`);
+              }
+            }
+          });
+        }
+
+        // Load and add a new image into renderMap
+        renderMap.loadImage(
+          'https://geoviewer.io/img/ns_marker.png',
+          (error, image) => {
+            if (error) {
+              console.error('Error loading image:', error);
+              return;
+            }
+            if (!renderMap.hasImage('gl-draw-ns-marker')) {
+              if (image) {
+                renderMap.addImage('gl-draw-ns-marker', image, { sdf: true });
+                console.log('Image added successfully.');
+              }
+            } else {
+              console.log('Image already exists.');
+            }
+          },
+        );
+      };
+
+      // 🔹 Wait until renderMap is fully loaded before adding images
+      if (!renderMap.isStyleLoaded()) {
+        console.log('Waiting for renderMap to load...');
+        renderMap.once('style.load', addImagesToRenderMap);
+      } else {
+        addImagesToRenderMap();
+      }
+
+      renderMap.once('idle', () => {
+        const canvas = renderMap.getCanvas();
+        const fileName = `${fName || 'map'}.${this_.format}`;
+        switch (this_.format) {
+          case Format.PNG:
+            this_.toPNG(canvas, fileName, callback);
+            break;
+          case Format.JPEG:
+            this_.toJPEG(canvas, fileName, callback);
+            break;
+          case Format.PDF:
+            this_.toPDF(
+              renderMap,
+              fileName,
+              { scale: `1'' = ${mapScale.toString()} ft`, ...pdfOptions },
+              callback,
+            );
+            break;
+          case Format.SVG:
+            this_.toSVG(canvas, fileName, callback);
+            break;
+          default:
+            console.error(`Invalid file format: ${this_.format}`);
+            break;
+        }
+
+        renderMap.remove();
+        hidden.parentNode?.removeChild(hidden);
+        Object.defineProperty(window, 'devicePixelRatio', {
+          get() {
+            return actualPixelRatio;
+          },
+        });
+
+        if (loader) {
+          // @ts-ignore
+          JsLoadingOverlay.hide();
+        }
+      });
+    } catch (e) {
       if (loader) {
         // @ts-ignore
         JsLoadingOverlay.hide();
       }
-    });
+      console.error(e);
+    }
   }
 
   /**
@@ -401,199 +405,213 @@ export default class MapGenerator {
     pdfOptions?: PDFOptions,
     callback?: ((error: any, data: any) => void) | undefined,
   ) {
-    const canvas = map.getCanvas();
+    try {
+      const canvas = map.getCanvas();
 
-    // Define the maximum width and height for the image in the PDF
-    const maxWidth = this.width - 20; // Subtract margins
-    const maxHeight = this.height - 55; // Subtract space for title and other elements
+      // Define the maximum width and height for the image in the PDF
+      const maxWidth = this.width - 20; // Subtract margins
+      const maxHeight = this.height - 55; // Subtract space for title and other elements
 
-    // Stretch the image to fill the entire width of the PDF page
-    const imageWidth = maxWidth; // Use the full width of the PDF page
-    let imageHeight = (canvas.height / canvas.width) * imageWidth;
+      // Stretch the image to fill the entire width of the PDF page
+      const imageWidth = maxWidth; // Use the full width of the PDF page
+      let imageHeight = (canvas.height / canvas.width) * imageWidth;
 
-    // Calculate the y position to center the image vertically
+      // Calculate the y position to center the image vertically
 
-    let yPosition = 13 + (maxHeight - imageHeight) / 2;
+      let yPosition = 13 + (maxHeight - imageHeight) / 2;
 
-    // If hideTitle is true and hideFooter is false, add 7 to yPosition
-    if (!pdfOptions?.hideTitle && pdfOptions?.hideFooter) {
-      yPosition += 15;
-    }
-    if (this.height > this.width) {
-      imageHeight += 12;
-      yPosition -= 5;
-    }
-    // Create the PDF
-    const pdf = new jsPDF({
-      orientation: this.width > this.height ? 'l' : 'p',
-      unit: this.unit,
-      compress: true,
-      format: [this.width, this.height],
-    });
+      // If hideTitle is true and hideFooter is false, add 7 to yPosition
+      if (!pdfOptions?.hideTitle && pdfOptions?.hideFooter) {
+        yPosition += 15;
+      }
+      if (this.height > this.width) {
+        imageHeight += 12;
+        yPosition -= 5;
+      }
+      // Create the PDF
+      const pdf = new jsPDF({
+        orientation: this.width > this.height ? 'l' : 'p',
+        unit: this.unit,
+        compress: true,
+        format: [this.width, this.height],
+      });
 
-    // Add the title
-    // pdf.setFontSize(13);
-    // const width = pdf.internal.pageSize.getWidth();
-    // pdf.text((pdfOptions?.title || '').toString(), width / 2, 9, {
-    //   align: 'center',
-    //   maxWidth: this.width - 20,
-    // });
+      // Add the title
+      // pdf.setFontSize(13);
+      // const width = pdf.internal.pageSize.getWidth();
+      // pdf.text((pdfOptions?.title || '').toString(), width / 2, 9, {
+      //   align: 'center',
+      //   maxWidth: this.width - 20,
+      // });
 
-    // Add the map image to the PDF
-    pdf.addImage(
-      canvas.toDataURL('image/png'),
-      'png',
-      10, // x position (left-aligned)
-      yPosition + (!pdfOptions?.hideTitle ? 0 : 15),
-      imageWidth, // width (stretched to fill the page width)
-      imageHeight,
-      undefined,
-      'FAST',
-    );
-
-    if (!pdfOptions?.hideTitle) {
-      // Add the title AFTER the map image to show it on top
-      pdf.setFontSize(13);
-      const width = pdf.internal.pageSize.getWidth();
-      const titleText = (pdfOptions?.title || '').toString() || ' '; // Ensure there's a space if no title is provided
-      // const textWidth = pdf.getTextWidth(titleText);
-      const titleHeight = 9; // Height for the title background
-      const padding = 2; // Padding for the background
-
-      // Set fill color to white for the background
-      pdf.setFillColor(255, 255, 255); // White background
-
-      // Draw a white rectangle to fill the entire width of the PDF
-      pdf.rect(
-        0, // x position (start at the left edge)
-        0, // y position (start at the top edge)
-        width, // fill the entire width of the PDF
-        titleHeight + padding * 2, // height with padding
-        'F', // 'F' means fill the rectangle
+      const largePaperSize = (
+        // Check for landscape or portrait [863, 558]
+        (this.width === 863 && this.height === 558)
+          || (this.width === 558 && this.height === 863)
+          // Check for landscape or portrait [914, 609]
+          || (this.width === 914 && this.height === 609)
+          || (this.width === 609 && this.height === 914)
       );
 
-      // Set text color to black
-      pdf.setTextColor(0, 0, 0);
+      const imageData = largePaperSize ? canvas.toDataURL('image/jpeg', 0.9) : canvas.toDataURL('image/png');
+      // Add the map image to the PDF
+      pdf.addImage(
+        imageData,
+        largePaperSize ? 'JPEG' : 'PNG',
+        10, // x position (left-aligned)
+        yPosition + (!pdfOptions?.hideTitle ? 0 : 15),
+        imageWidth, // width (stretched to fill the page width)
+        imageHeight,
+        undefined,
+        'FAST',
+      );
 
-      // Add title text centered horizontally
-      pdf.text(titleText, width / 2, titleHeight / 2 + padding, {
-        align: 'center',
-        maxWidth: this.width - 20,
-      });
-    }
+      if (!pdfOptions?.hideTitle) {
+        // Add the title AFTER the map image to show it on top
+        pdf.setFontSize(13);
+        const width = pdf.internal.pageSize.getWidth();
+        const titleText = (pdfOptions?.title || '').toString() || ' '; // Ensure there's a space if no title is provided
+        // const textWidth = pdf.getTextWidth(titleText);
+        const titleHeight = 9; // Height for the title background
+        const padding = 2; // Padding for the background
 
-    if (!pdfOptions?.hideFooter) {
-      // Define the table columns and rows
-      const columns = [
-        pdfOptions?.scale,
-        pdfOptions?.subTitle,
-        this.formatDate(new Date()),
-        '',
-      ];
+        // Set fill color to white for the background
+        pdf.setFillColor(255, 255, 255); // White background
 
-      const infoRow = [
-        'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.',
-      ];
+        // Draw a white rectangle to fill the entire width of the PDF
+        pdf.rect(
+          0, // x position (start at the left edge)
+          0, // y position (start at the top edge)
+          width, // fill the entire width of the PDF
+          titleHeight + padding * 2, // height with padding
+          'F', // 'F' means fill the rectangle
+        );
 
-      // Set the table options
-      const options = {
-        theme: 'grid',
-        tableLineColor: [0, 0, 0],
-        tableLineWidth: 0.5,
-        startY: this.height - 40,
-        styles: {
-          overflow: 'linebreak',
-          fontSize: 12,
-          fontStyle: 'bold',
-          halign: 'center',
-          valign: 'middle',
-        },
-        headStyles: {
-          fillColor: [255, 255, 255],
-          textColor: [0, 0, 0],
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5,
-          minCellHeight: 25,
-          cellWidth: (this.width - 20) / 4,
-        },
-        bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
-        margin: {
-          top: 0,
-          left: 10,
-          right: 10,
-          bottom: 0,
-        },
-        didDrawCell: (data: {
-          section: string;
-          column: { index: number };
-          cell: {
-            x: number;
-            width: string | number;
-            y: number;
-            height: number;
-          };
-        }) => {
-          if (
-            data.section === 'head'
-            && data.column.index === 3
-            && (this.logoURL || pdfOptions?.logo)
-          ) {
-            const img = new Image();
-            img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
-            const cellWidth = typeof data.cell.width === 'number'
-              ? data.cell.width
-              : parseFloat(data.cell.width);
-            const cellHeight = data.cell.height;
-            const logoWidth = 20;
-            const logoHeight = 20;
-            const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
-            const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
-            pdf.addImage(
-              img,
-              'JPEG',
-              xPosition,
-              yPosition,
-              logoWidth,
-              logoHeight,
-            );
-          }
-        },
-      };
+        // Set text color to black
+        pdf.setTextColor(0, 0, 0);
 
-      // Generate the table
-      // @ts-ignore
-      pdf.autoTable(columns, [], options);
+        // Add title text centered horizontally
+        pdf.text(titleText, width / 2, titleHeight / 2 + padding, {
+          align: 'center',
+          maxWidth: this.width - 20,
+        });
+      }
 
-      const informationRowOptions = {
-        ...options,
+      if (!pdfOptions?.hideFooter) {
+        // Define the table columns and rows
+        const columns = [
+          pdfOptions?.scale,
+          pdfOptions?.subTitle,
+          this.formatDate(new Date()),
+          '',
+        ];
+
+        const infoRow = [
+          'This map may represent a visual display of related geographic information. Data provided here is not a guarantee of actual field conditions. To ensure complete accuracy, please contact the responsible staff for the most up-to-date information.',
+        ];
+
+        // Set the table options
+        const options = {
+          theme: 'grid',
+          tableLineColor: [0, 0, 0],
+          tableLineWidth: 0.5,
+          startY: this.height - 40,
+          styles: {
+            overflow: 'linebreak',
+            fontSize: 12,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle',
+          },
+          headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5,
+            minCellHeight: 25,
+            cellWidth: (this.width - 20) / 4,
+          },
+          bodyStyles: { minCellHeight: 100, lineColor: [0, 0, 0] },
+          margin: {
+            top: 0,
+            left: 10,
+            right: 10,
+            bottom: 0,
+          },
+          didDrawCell: (data: {
+            section: string;
+            column: { index: number };
+            cell: {
+              x: number;
+              width: string | number;
+              y: number;
+              height: number;
+            };
+          }) => {
+            if (
+              data.section === 'head'
+                && data.column.index === 3
+                && (this.logoURL || pdfOptions?.logo)
+            ) {
+              const img = new Image();
+              img.src = `${this.logoURL || pdfOptions?.logo}?${Math.random()}`;
+              const cellWidth = typeof data.cell.width === 'number'
+                ? data.cell.width
+                : parseFloat(data.cell.width);
+              const cellHeight = data.cell.height;
+              const logoWidth = 20;
+              const logoHeight = 20;
+              const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
+              const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
+              pdf.addImage(
+                img,
+                'JPEG',
+                xPosition,
+                yPosition,
+                logoWidth,
+                logoHeight,
+              );
+            }
+          },
+        };
+
+        // Generate the table
         // @ts-ignore
-        startY: pdf.autoTable.previous.finalY,
-        bodyStyles: {
-          minCellHeight: 10,
-          lineColor: [0, 0, 0],
-          fontSize: 8.5,
-          halign: 'left',
-        },
-        cellWidth: this.width - 20,
-      };
+        pdf.autoTable(columns, [], options);
 
-      // @ts-ignore
-      pdf.autoTable([columns], [infoRow], informationRowOptions);
-    }
+        const informationRowOptions = {
+          ...options,
+          // @ts-ignore
+          startY: pdf.autoTable.previous.finalY,
+          bodyStyles: {
+            minCellHeight: 10,
+            lineColor: [0, 0, 0],
+            fontSize: 8.5,
+            halign: 'left',
+          },
+          cellWidth: this.width - 20,
+        };
 
-    const { lng, lat } = map.getCenter();
-    pdf.setProperties({
-      title: 'Map PDF',
-      subject: `center: [${lng}, ${lat}], zoom: ${map.getZoom()}`,
-      creator: 'Nobel Systems Map Exporter',
-      author: '(c)Nobel Systems',
-    });
+        // @ts-ignore
+        pdf.autoTable([columns], [infoRow], informationRowOptions);
+      }
 
-    if (callback) {
-      const pdfBlob = pdf.output('blob');
-      callback(null, pdfBlob);
-    } else {
-      pdf.save(fileName);
+      const { lng, lat } = map.getCenter();
+      pdf.setProperties({
+        title: 'Map PDF',
+        subject: `center: [${lng}, ${lat}], zoom: ${map.getZoom()}`,
+        creator: 'Nobel Systems Map Exporter',
+        author: '(c)Nobel Systems',
+      });
+
+      if (callback) {
+        const pdfBlob = pdf.output('blob');
+        callback(null, pdfBlob);
+      } else {
+        pdf.save(fileName);
+      }
+    } catch (e) {
+      console.error(e);
     }
   }
 
