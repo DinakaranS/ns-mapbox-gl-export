@@ -12,6 +12,8 @@ type PDFOptions = {
   scale?: string;
   hideFooter?: boolean;
   hideTitle?: boolean;
+  logoSize?: any;
+  logoBase64?: string;
 };
 
 export const Format = {
@@ -551,6 +553,21 @@ export default class MapGenerator {
             if (
               data.section === 'head'
                 && data.column.index === 3
+                && pdfOptions?.logoBase64
+            ) {
+              const cellWidth = Number(data.cell.width);
+              const cellHeight = data.cell.height;
+
+              const logoWidth = pdfOptions?.logoSize?.width || 20;
+              const logoHeight = pdfOptions?.logoSize?.height || 20;
+
+              const x = data.cell.x + (cellWidth - logoWidth) / 2;
+              const y = data.cell.y + (cellHeight - logoHeight) / 2;
+
+              pdf.addImage(pdfOptions?.logoBase64, 'PNG', x, y, logoWidth, logoHeight);
+            } else if (
+              data.section === 'head'
+                && data.column.index === 3
                 && (this.logoURL || pdfOptions?.logo)
             ) {
               const img = new Image();
@@ -559,8 +576,8 @@ export default class MapGenerator {
                 ? data.cell.width
                 : parseFloat(data.cell.width);
               const cellHeight = data.cell.height;
-              const logoWidth = 20;
-              const logoHeight = 20;
+              const logoWidth = pdfOptions?.logoSize?.width || 20;
+              const logoHeight = pdfOptions?.logoSize?.height || 20;
               const xPosition = data.cell.x + (cellWidth - logoWidth) / 2;
               const yPosition = data.cell.y + (cellHeight - logoHeight) / 2;
               pdf.addImage(
